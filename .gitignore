@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+.netlify/
+.npm-cache/
+supabase/.temp/
+supabase/.branches/

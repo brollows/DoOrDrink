@@ -1,0 +1,193 @@
+@media (max-width: 700px) {
+  .home-layout { padding: 0 18px; }
+  .home-header { padding: 16px 0; }
+  .home-main { gap: 18px; padding: 8px 0 18px; }
+  .intro > .eyebrow, .intro-chips { display: none; }
+  .intro h1 { font-size: 2.1rem; }
+  .intro > p { margin-top: 10px; font-size: .9rem; }
+  .entry-card { padding: 18px; }
+  .tabs { margin-bottom: 16px; }
+  .tabs button { padding: 10px 8px; }
+  .entry-card form { margin-top: 18px; }
+  .entry-card input { min-height: 48px; padding: 12px 14px; margin-bottom: 15px; }
+  .entry-card label { margin-bottom: 7px; }
+  .entry-footer { padding-top: 12px; }
+  .demo-link { min-height: 44px; padding: 12px 0; }
+  .home-footer { gap: 18px; padding: 15px 0 calc(15px + env(safe-area-inset-bottom)); }
+  .home-footer > span { display: none; }
+
+  .game-layout {
+    height: 100dvh;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: env(safe-area-inset-top) 14px 0;
+    overflow: hidden;
+    gap: 10px;
+  }
+  .game-layout > * { flex-shrink: 0; }
+  .game-header { padding: 10px 0; min-height: 60px; }
+  .session-label strong { font-size: 1rem; }
+  .self-label { max-width: 130px; }
+  .self-label > span { max-height: 40px; overflow: auto; }
+  .demo-bar { margin: 0; padding: 4px 8px; min-height: 40px; }
+  .demo-bar select { min-height: 30px; }
+  .round-top { margin: 0; min-height: 26px; }
+  .round-top > .pill { padding: 5px 8px; }
+  .stepper { margin: 0; min-height: 42px; }
+  .stepper > div { gap: 4px; }
+  .stepper small { font-size: .75rem; line-height: 1.1; }
+  .round-main {
+    flex: 1;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: stretch;
+  }
+  .round-card {
+    min-height: 0;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    container-type: size;
+  }
+  .round-card > * { flex-shrink: 0; }
+  .round-card h1 { font-size: 2rem; }
+  .round-card > .eyebrow { margin-bottom: 9px; }
+  .round-card .task-description { margin: 12px auto 16px; line-height: 1.5; }
+  .phase-assignment, .phase-guessing, .phase-performing { justify-content: safe center; }
+  .task-icon { width: 44px; height: 44px; margin: 0 auto 12px; border-radius: 14px; }
+  .task-icon svg { width: 24px; height: 24px; }
+  .performer-card { width: 100%; margin: 0 auto 14px; padding: 11px 13px; }
+  .choice-buttons { width: 100%; gap: 9px; margin: 0 auto; }
+  .button { min-height: 48px; padding: 12px 16px; }
+  .waiting { margin-top: 10px; padding: 12px; }
+  .guess-controls { width: 100%; margin: 0 auto; }
+  .guess-value { font-size: 3.5rem; }
+  .guess-value span { margin: 0 0 15px; }
+  .guess-controls input { margin: 16px 0; }
+  .range-labels { margin: 5px 0 20px; }
+  .answer-saved { padding: 0; }
+  .answer-saved > strong { margin: 12px 0; }
+  .large-icon { width: 50px; height: 50px; border-radius: 16px; margin: 0 auto 12px; }
+  .round-sidebar:not(:has(.response-status)) { display: none; }
+  .round-sidebar > .side-card:not(.response-status) { display: none; }
+  .response-status { margin: 0; padding: 12px 14px; border-radius: 14px; }
+  .response-status h3 { font-size: .9rem; }
+  .progress-track { margin: 10px 0 8px; height: 4px; }
+  .response-status > p { margin-top: 0; font-size: .8rem; line-height: 1.4; }
+  .missing-players { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 5px; }
+  .missing-players > span { display: block; font-size: .8rem; line-height: 1.4; overflow-wrap: anywhere; }
+  .missing-players .avatar { display: none; }
+  .response-status .missing-players + p { margin-top: 4px; font-size: .75rem; }
+  .stopwatch { padding-top: 18px; }
+  .phase-performing:has(.stopwatch, .timer-done) > h1,
+  .phase-performing:has(.stopwatch, .timer-done) > .eyebrow { display: none; }
+  .timer-value { font-size: 4.2rem; margin: 16px 0 20px; }
+  .timer-button { min-height: 64px; width: 100%; min-width: 0; }
+  .stopwatch > p { margin-top: 14px; line-height: 1.5; }
+  .timer-done { margin-top: 20px; }
+  .timer-done p { margin: 12px 0; }
+  .private-result { padding: 12px; }
+  .spectator { padding-top: 20px; }
+  .spectator > .avatar { margin-bottom: 15px; }
+  .spectator p { margin: 10px auto 16px; }
+  .reveal-value { margin: 8px 0 14px; }
+  .reveal-value > strong { font-size: 3.3rem; margin: 8px 0; }
+  .reveal-value strong small { margin-top: 6px; }
+  .reveal-value p { line-height: 1.4; }
+  .ranking {
+    flex: 1;
+    min-height: 0;
+    margin-top: 10px;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+    -webkit-overflow-scrolling: touch;
+  }
+  .ranking-row { padding: 11px 0; min-height: 62px; }
+  .ranking-name > strong { font-size: .9rem; }
+  .ranking-name > span { line-height: 1.4; }
+  .phase-sips .task-description { margin: 10px auto 12px; }
+  .giver-list { margin: 0 0 12px; gap: 7px; }
+  .giver { min-height: 44px; padding: 7px 9px; }
+  .giver .avatar { width: 28px; height: 28px; }
+  .recipient-list { flex: 1; min-height: 0; margin: 0; display: flex; flex-direction: column; }
+  .recipient-list h3 { flex-shrink: 0; margin-bottom: 10px; }
+  .recipient-options { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; }
+  .recipient-button { min-height: 50px; padding: 8px 10px; margin-bottom: 8px; }
+  .immune-note { margin-top: 12px; line-height: 1.4; }
+  .host-controls, .player-controls {
+    position: static;
+    transform: none;
+    width: auto;
+    margin: 0 -14px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    min-height: 60px;
+  }
+  .host-controls .next-button { min-height: 48px; }
+  .end-button { min-width: 38px; min-height: 44px; }
+  .player-controls { min-height: 52px; padding-top: 14px; padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+  .lobby-main { flex: 1; min-height: 0; grid-template-rows: auto minmax(0, 1fr); gap: 16px; padding: 4px 0 calc(14px + env(safe-area-inset-bottom)); }
+  .lobby-intro .eyebrow { margin-bottom: 8px; }
+  .lobby-intro h1 { font-size: 2.3rem; }
+  .lobby-intro > p { margin-top: 8px; font-size: .9rem; line-height: 1.5; }
+  .join-code { margin-top: 12px; padding: 12px 18px; }
+  .join-code span { font-size: 2.3rem; }
+  .round-summary { margin: 12px 0 14px; }
+  .round-summary > div { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 6px; }
+  .round-summary svg { width: 16px; }
+  .round-summary strong { font-size: 1rem; }
+  .players-card { min-height: 0; height: auto; padding: 16px; display: flex; flex-direction: column; }
+  .player-list { min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; margin-top: 10px; }
+  .player-row { padding: 10px 0; }
+  .finished-main { flex: 1; min-height: 0; margin: 10px 0 0; padding-bottom: calc(14px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; }
+  .finished-main > :not(.ranking) { flex-shrink: 0; }
+  .finished-main h1 { font-size: 2rem; margin-top: 10px; }
+  .finished-main > .button { margin-top: 14px; }
+  .drink-mode .round-main { display: flex; }
+  .drink-mode .round-card { min-height: 0; flex: 1; justify-content: center; }
+  .drink-mode .round-top { margin-bottom: 0; }
+  .drink-content > svg { width: 46px; height: 46px; margin: 0 0 20px; }
+  .drink-content h1 { font-size: 4rem; }
+  .drink-content > .eyebrow { margin-bottom: 16px; }
+  .drink-content p { margin: 18px 0; }
+  .modal { max-height: calc(100dvh - 48px); overflow-y: auto; }
+  .game-layout > .error, .game-layout > .offline { max-height: 88px; overflow-y: auto; margin: 0; padding: 10px 12px; }
+}
+
+@media (max-width: 700px) and (max-height: 720px) {
+  .game-layout { gap: 7px; }
+  .game-header { min-height: 52px; padding: 6px 0; }
+  .stepper { min-height: 36px; }
+  .round-card { padding: 14px; }
+  .round-card h1 { font-size: 1.8rem; }
+  .task-description { font-size: .85rem; }
+  .task-icon { display: none; }
+  .stopwatch { padding-top: 12px; }
+  .timer-value { font-size: 3.5rem; margin: 12px 0 15px; }
+  .timer-button { min-height: 56px; }
+  .phase-performing:has(.stopwatch) > h1 { display: none; }
+  .spectator { padding-top: 10px; }
+  .spectator > .avatar { width: 44px; height: 44px; font-size: 1.2rem; border-radius: 14px; margin-bottom: 10px; }
+  .spectator h2 { font-size: 1.15rem; }
+  .spectator p { margin: 8px auto 10px; line-height: 1.4; }
+  .locked-result { padding: 9px 12px; }
+  .performer-card { margin-bottom: 10px; }
+  .giver-list { gap: 5px; margin-bottom: 9px; }
+  .giver { min-height: 40px; }
+  .lobby-intro .eyebrow { display: none; }
+  .round-summary { margin: 9px 0; }
+}
+
+.ranking:focus-visible, .recipient-options:focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; }
+
+@container (max-height: 350px) {
+  .stopwatch { padding-top: 0; }
+  .timer-value { font-size: 3rem; margin: 8px 0 10px; }
+  .timer-button { min-height: 56px; }
+  .stopwatch > p { margin-top: 10px; }
+  .timer-done { margin-top: 0; }
+}
