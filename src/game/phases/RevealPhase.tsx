@@ -63,13 +63,13 @@ function VoteResults({ state }: { state: State }) {
               <strong>{percent}%</strong>
             </div>
             <div className="progress-track"><span style={{ width: `${percent}%` }} /></div>
-            <small>{counts[option]} {counts[option] === 1 ? 'stemme' : 'stemmer'}{myResponse?.choice === String(option) && ' · ditt valg'}{minority === option && ' · drikker'}</small>
+            <small>{counts[option]} {counts[option] === 1 ? 'stemme' : 'stemmer'}{myResponse?.choice === String(option) && ' · ditt valg'}{minority === option ? ' · drikker' : minority !== null && ' · +3 poeng'}</small>
           </div>
         );
       })}
     </div>
     <p className="muted vote-summary">
-      {minority === null ? 'Helt likt! Ingen drikker for valget sitt.' : 'Mindretallet tar 3 slurker.'}
+      {minority === null ? 'Helt likt! Ingen poeng, og ingen drikker for valget sitt.' : 'Flertallet får 3 poeng. Mindretallet tar 3 slurker.'}
       {missing > 0 && ` ${missing} svarte ikke og drikker også.`}
     </p>
   </>;

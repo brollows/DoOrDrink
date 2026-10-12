@@ -170,8 +170,11 @@ function awardChoice(responses: Response[]) {
   const first = responses.filter((q) => q.choice === "0").length;
   const second = responses.filter((q) => q.choice === "1").length;
   const minority = first < second ? "0" : second < first ? "1" : null;
-  for (const q of responses)
+  for (const q of responses) {
     q.drinks = q.choice === null || q.choice === minority;
+    // The majority wins; a tie has no majority.
+    q.points = minority !== null && q.choice !== null && q.choice !== minority ? 3 : 0;
+  }
 }
 
 function awardScores(game: DemoGame) {

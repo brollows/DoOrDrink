@@ -45,7 +45,7 @@ export type Task = {
 };
 
 const wouldYouRather = (id: string, options: [string, string]): Task => ({
-  id, title: 'Ville du helst …', description: 'Alle velger. De som havner i mindretall tar 3 slurker.',
+  id, title: 'Ville du helst …', description: 'Alle velger. Flertallet får 3 poeng, mindretallet tar 3 slurker.',
   kind: 'everyone', sips: 'losers', options, answer: { method: 'choice', unit: '', min: 0, max: 0 },
 });
 

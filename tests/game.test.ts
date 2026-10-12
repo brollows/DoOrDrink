@@ -33,7 +33,7 @@ before(async () => {
   await db.exec(`create role anon; create role authenticated; create schema auth;
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.user_id',true),'')::uuid$$;`);
   // 002 schedules cleanup with pg_cron, which PGlite does not provide.
-  for (const migration of ['001_game.sql', '003_host_plays.sql', '004_sips_before_leaderboard.sql', '005_more_tasks.sql'])
+  for (const migration of ['001_game.sql', '003_host_plays.sql', '004_sips_before_leaderboard.sql', '005_more_tasks.sql', '006_would_you_rather_points.sql'])
     await db.exec(await readFile(new URL(`../supabase/migrations/${migration}`, import.meta.url), 'utf8'));
 });
 after(async () => { await db.close(); });
@@ -393,7 +393,7 @@ test('rock paper scissors against the machine replays ties until someone wins', 
   assert.ok(!(result.points === 3 && result.drinks));
 });
 
-test('would you rather: the minority and players who did not answer drink; a tie spares everyone', async () => {
+test('would you rather: the majority scores 3, the minority and non-answerers drink; a tie does neither', async () => {
   let game = await create(4, ['wyr_naked', 'wyr_beer']);
   game = await act(game, 'start'); game = await act(game, 'next');
   const [p0, p1, p2, p3] = game.players.map(p => p.id);
@@ -403,11 +403,15 @@ test('would you rather: the minority and players who did not answer drink; a tie
   await identity(0); game = await act(game, 'next');
   const drinks = (id: string) => game.round.responses.find(q => q.playerId === id)!.drinks;
   assert.deepEqual([drinks(p0), drinks(p1), drinks(p2), drinks(p3)], [false, false, true, true]);
-  assert.ok(game.round.responses.every(q => q.points === 0));
-  for (let i = 0; i < 3; i++) game = await act(game, 'next');
+  const points = (id: string) => game.round.responses.find(q => q.playerId === id)!.points;
+  assert.deepEqual([points(p0), points(p1), points(p2), points(p3)], [3, 3, 0, 0]);
+  assert.equal(game.players.find(p => p.id === p0)!.score, 3);
+  game = await act(game, 'next');
+  assert.deepEqual(game.round.winners, [], 'the majority does not hand out sips');
+  for (let i = 0; i < 2; i++) game = await act(game, 'next');
   assert.equal(game.round.taskId, 'wyr_beer');
   game = await act(game, 'next');
   for (const [id, value] of [[p0, '0'], [p1, '1'], [p2, '0'], [p3, '1']] as const) { await asPlayer(game, id); game = await act(game, 'choose', { value }); }
   await identity(0); game = await act(game, 'next');
-  assert.ok(game.round.responses.every(q => !q.drinks));
+  assert.ok(game.round.responses.every(q => !q.drinks && q.points === 0));
 });

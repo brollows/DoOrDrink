@@ -24,7 +24,7 @@ function Rules() {
       <li>De tre med flest poeng i runden får dele ut 3 slurker hver. De er immune. Førstemann til mølla velger mottaker.</li>
       <li>På «Perfekte 10» starter og stopper alle selv. Resultatet skjules til fasiten. 20 sekunder eller ingen fullføring gir 0 poeng.</li>
       <li>I «Stein, saks, papir» får alle en tilfeldig motstander, eller maskinen ved oddetall. Uavgjort betyr nytt valg. Vinneren får 3 poeng, og taperen tar 3 slurker.</li>
-      <li>I «Ville du helst» velger alle ett av to alternativer. De i mindretall tar 3 slurker. Ved helt likt drikker ingen.</li>
+      <li>I «Ville du helst» velger alle ett av to alternativer. Flertallet får 3 poeng, og de i mindretall tar 3 slurker. Ved helt likt skjer ingenting.</li>
       <li>Verten styrer stegene og kan gå videre før alle er klare. Manglende svar gir 0 poeng.</li>
     </ol>
     <p className="muted">Hver spiller tar maks én utfordring. Når alle har tatt sin, hoppes resten av utfordringene over, mens oppgavene for alle fortsetter. Spillet slutter når oppgavene er brukt opp eller verten avslutter. Spilldata slettes innen 24 timer.</p>
