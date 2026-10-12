@@ -11,7 +11,10 @@ export type Round = {
   allocations: { giverId: string; recipientId: string }[];
 };
 export type Game = {
-  id: string; code: string; hostId: string; meId: string; status: 'lobby' | 'playing' | 'finished';
+  id: string; code: string; hostId: string;
+  /** False when the host only runs the game (e.g. on a TV) and does not play. */
+  hostPlays: boolean;
+  meId: string; status: 'lobby' | 'playing' | 'finished';
   expiresAt: string; taskCount: number; players: Player[]; round: Round | null;
 };
 export type Task = {
@@ -24,6 +27,13 @@ export const tasks: Record<string, Task> = {
   ten_seconds: { id: 'ten_seconds', title: 'Perfekte 10', description: 'Start din egen timer. Stopp så nær 10 sekunder som mulig. Tiden forsvinner når du stopper.',
     kind: 'everyone', answer: { method: 'stopwatch', unit: 'sekunder', min: 0, max: 20, target: 10, timeout: 20 } }
 };
+/** Players who take part in rounds: everyone, except a host who only runs the game. */
+export function participants(game: Game): Player[] {
+  return game.hostPlays === false ? game.players.filter(p => p.id !== game.hostId) : game.players;
+}
+export function roundTask(round: Round): Task {
+  return round.task || tasks[round.taskId];
+}
 export const phaseNames: Record<Phase, string> = {
   assignment: 'Oppgaven', guessing: 'Gjett', performing: 'Gjør det', reveal: 'Fasit', leaderboard: 'Poengtavle', sips: 'Slurker'
 };

@@ -128,14 +128,21 @@
     min-height: 60px;
   }
   .host-controls .next-button { min-height: 48px; }
-  .end-button { min-width: 38px; min-height: 44px; }
+  .end-button { min-width: 44px; min-height: 44px; }
   .player-controls { min-height: 52px; padding-top: 14px; padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
-  .lobby-main { flex: 1; min-height: 0; grid-template-rows: auto minmax(0, 1fr); gap: 16px; padding: 4px 0 calc(14px + env(safe-area-inset-bottom)); }
+  .lobby-main { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; grid-template-rows: auto minmax(220px, 1fr); gap: 16px; padding: 4px 0 calc(14px + env(safe-area-inset-bottom)); }
   .lobby-intro .eyebrow { margin-bottom: 8px; }
   .lobby-intro h1 { font-size: 2.3rem; }
   .lobby-intro > p { margin-top: 8px; font-size: .9rem; line-height: 1.5; }
   .join-code { margin-top: 12px; padding: 12px 18px; }
   .join-code span { font-size: 2.3rem; }
+  .join-panel { margin-top: 12px; padding: 12px; gap: 14px; border-radius: 16px; }
+  .join-panel .join-code { margin-top: 2px; }
+  .join-panel .join-code span { font-size: 1.6rem; letter-spacing: .14em; }
+  .join-details > p { display: none; }
+  .qr-code { width: 96px; border-radius: 8px; }
+  .toggle-row { min-height: 52px; margin-bottom: 12px; padding: 8px 12px; }
+  .toggle-row small { font-size: .75rem; }
   .round-summary { margin: 12px 0 14px; }
   .round-summary > div { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 6px; }
   .round-summary svg { width: 16px; }

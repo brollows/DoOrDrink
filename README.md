@@ -20,7 +20,7 @@ The local project is connected to `https://mavqjmobgreyoyuqvquv.supabase.co`. Bo
 
 1. Create a dedicated Supabase project.
 2. Enable **Authentication → Sign In / Providers → Anonymous Sign-Ins**. Players never need to provide an email or password.
-3. Run `supabase/migrations/001_game.sql` in the SQL Editor, then run `002_cleanup.sql`. These are initial migrations for a new project, not scripts to rerun on an existing database.
+3. Run `supabase/migrations/001_game.sql` in the SQL Editor, then `002_cleanup.sql`, then `003_host_plays.sql`. Run each migration once, in order; do not rerun earlier ones on an existing database.
 4. Copy `.env.example` to `.env`, and enter the project's URL and public publishable/anon key. Never put a `service_role` or secret key in a `VITE_` variable.
 5. Restart the development server.
 6. Verify that `public.session_updates` is enabled in the `supabase_realtime` publication. The first migration adds it when the publication exists.
@@ -45,7 +45,8 @@ The service worker caches the app shell, not Supabase data. Online multiplayer r
 
 ## Game rules
 
-- Host identity participates in the random pool. Names can be identical; all decisions use player IDs.
+- By default the host plays and participates in the random pool. In the lobby the host can turn off **Jeg spiller med** to only run the game, for example on a TV. A non-playing host gets no tasks, guesses, timers, points or sips, is left out of rankings, and sees answer status immediately. The setting is locked once the game starts, and at least two other players are then required. Names can be identical; all decisions use player IDs.
+- The host's lobby shows a QR code for `/join/<code>`, which opens **Bli med** with the code filled in.
 - Each task is used once per session. Successfully completing an individual task removes that player from the individual pool. Declining keeps the player eligible for a later task, but prevents them from being redrawn within the same refusal chain.
 - Completing an individual task awards 5 points; completing a transferred task awards 10. Host advancement without a result awards no completion bonus and does not consume that player's individual turn.
 - The game ends after the last task or when the individual pool is empty. Collective tasks do not mark every player as having completed an individual turn. This prevents the ten-second task from immediately using up everyone's turn.
@@ -62,9 +63,11 @@ The service worker caches the app shell, not Supabase data. Online multiplayer r
 - `src/model.ts`: typed task definitions, response/round/session models and scoring utility.
 - `src/api.ts`: anonymous authentication, RPC actions, membership recovery and Realtime invalidation signals. A four-second refresh and visibility/reconnect refresh recover missed signals.
 - `src/demo.ts`: isolated local demonstration adapter. It does not pretend to provide remote multiplayer.
-- `src/App.tsx`: routed screens, participant timer, host controls, round results and sip allocation.
+- `src/App.tsx`: routes only. Screens live in `src/pages/`, shared UI in `src/components/`.
+- `src/game/`: the game screen. `useGame.ts` loads and syncs state and sends actions; `roundState.ts` derives readiness, winners and recipients; `phases/` has one component per round phase.
 - `supabase/migrations/001_game.sql`: private game tables, server-side state machine, ranking, authorization and filtered snapshots.
 - `supabase/migrations/002_cleanup.sql`: session expiry scheduler.
+- `supabase/migrations/003_host_plays.sql`: optional non-playing host.
 
 Private tables cannot be read or written by client roles. The exposed functions check `auth.uid()`, membership, phase and host/performer permissions. Hidden answers never enter a spectator's pre-reveal snapshot or Realtime event. Realtime sends only a session ID and version. The database session lock and allocation uniqueness constraint make simultaneous allocations safe. Host next/back requests include their expected phase to prevent duplicate requests skipping steps.
 

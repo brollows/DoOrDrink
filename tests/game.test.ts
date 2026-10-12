@@ -6,7 +6,7 @@ import { rankingPoints } from '../src/model';
 
 const db = new PGlite();
 const users = Array.from({ length: 10 }, (_, i) => `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`);
-type State = { id: string; code: string; meId: string; hostId: string; status: string; players: { id: string; score: number; completed: boolean }[]; round: { id: string; phase: string; performerId: string; actual: number | null; transferred: boolean; responses: { playerId: string; guess: number | null; actual: number | null; points: number; rank: number | null }[]; winners: string[]; allocations: { giverId: string; recipientId: string }[] } };
+type State = { id: string; code: string; meId: string; hostId: string; hostPlays: boolean; status: string; players: { id: string; score: number; completed: boolean }[]; round: { id: string; phase: string; performerId: string; actual: number | null; transferred: boolean; responses: { playerId: string; submitted: boolean; guess: number | null; actual: number | null; points: number; rank: number | null }[]; winners: string[]; allocations: { giverId: string; recipientId: string }[] } };
 async function identity(index: number) { await db.query("select set_config('test.user_id',$1,false)", [users[index]]); }
 async function rpc(name: string, args: unknown[]) {
   const result = await db.query<{ value: State }>(`select public.${name}(${args.map((_, i) => `$${i + 1}`).join(',')}) as value`, args);
@@ -30,7 +30,9 @@ async function asPlayer(game: State, id: string) {
 before(async () => {
   await db.exec(`create role anon; create role authenticated; create schema auth;
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.user_id',true),'')::uuid$$;`);
-  await db.exec(await readFile(new URL('../supabase/migrations/001_game.sql', import.meta.url), 'utf8'));
+  // 002 schedules cleanup with pg_cron, which PGlite does not provide.
+  for (const migration of ['001_game.sql', '003_host_plays.sql'])
+    await db.exec(await readFile(new URL(`../supabase/migrations/${migration}`, import.meta.url), 'utf8'));
 });
 after(async () => { await db.close(); });
 beforeEach(async () => { await db.exec('delete from game_private.sessions'); });
@@ -216,4 +218,49 @@ test('manual results support units, host entry, hidden answers and tied last pla
   assert.equal(game.round.responses.find(q => q.playerId === guessers[3].id)!.points, 2);
   assert.equal(game.round.responses.find(q => q.playerId === guessers[4].id)!.points, 2);
   assert.equal(game.round.responses.find(q => q.playerId === performer)!.points, 5);
+});
+
+test('a non-playing host runs the game without tasks, guesses, points or sips', async () => {
+  let game = await create(4);
+  assert.equal(game.hostPlays, true);
+  await asPlayer(game, game.players[1].id);
+  await assert.rejects(() => act(game, 'host_plays', { value: false }), /Bare verten/);
+  await identity(0);
+  await assert.rejects(() => act(game, 'host_plays', { value: 'nei' }), /Ugyldig/);
+  game = await act(game, 'host_plays', { value: false });
+  assert.equal(game.hostPlays, false);
+  game = await act(game, 'start');
+  await assert.rejects(() => act(game, 'host_plays', { value: true }), /før spillet starter/);
+  assert.notEqual(game.round.performerId, game.hostId);
+  assert.equal(game.round.responses.length, 3);
+  assert.ok(game.round.responses.every(q => q.playerId !== game.hostId));
+  const performer = game.round.performerId;
+  await asPlayer(game, performer); game = await act(game, 'accept');
+  await identity(0); game = await act(game, 'next');
+  await assert.rejects(() => act(game, 'guess', { value: 10 }), /deltar ikke/);
+  const guessers = game.players.filter(p => p.id !== performer && p.id !== game.hostId);
+  await asPlayer(game, guessers[0].id); await act(game, 'guess', { value: 10 });
+  await identity(0);
+  const monitored = await rpc('game_state', [game.id]);
+  assert.equal(monitored.round.responses.find(q => q.playerId === guessers[0].id)!.submitted, true);
+  await asPlayer(game, guessers[1].id); await act(game, 'guess', { value: 20 });
+  await identity(0); game = await act(game, 'next');
+  await assert.rejects(() => act(game, 'timer_start'), /deltar ikke/);
+  await asPlayer(game, performer); game = await act(game, 'timer_start');
+  await db.query("update game_private.responses set started_at=clock_timestamp()-interval '10 seconds' where round_id=$1 and player_id=$2", [game.round.id, performer]);
+  game = await act(game, 'timer_stop', { value: 10 });
+  await identity(0); game = await act(game, 'next'); game = await act(game, 'next'); game = await act(game, 'next');
+  assert.equal(game.players.find(p => p.id === game.hostId)!.score, 0);
+  assert.ok(!game.round.winners.includes(game.hostId));
+  await asPlayer(game, game.round.winners[0]);
+  await assert.rejects(() => act(game, 'allocate', { recipientId: game.hostId }), /kan ikke få/);
+});
+
+test('a non-playing host still needs two players to start', async () => {
+  let game = await create(2);
+  game = await act(game, 'host_plays', { value: false });
+  await assert.rejects(() => act(game, 'start'), /minst to/);
+  game = await act(game, 'host_plays', { value: true });
+  game = await act(game, 'start');
+  assert.equal(game.status, 'playing');
 });
