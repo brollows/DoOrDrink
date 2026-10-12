@@ -119,6 +119,21 @@
   .recipient-options { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; }
   .recipient-button { min-height: 50px; padding: 8px 10px; margin-bottom: 8px; }
   .immune-note { margin-top: 12px; line-height: 1.4; }
+  .hand-buttons { gap: 8px; margin-top: 14px; }
+  .hand-button { min-height: 92px; padding: 12px 4px; border-radius: 14px; }
+  .option-buttons { gap: 9px; margin-top: 14px; }
+  .option-button { min-height: 64px; padding: 12px; gap: 11px; font-size: .9rem; }
+  .tie-note { margin-top: 10px; }
+  .match-list { margin-top: 12px; gap: 8px; }
+  .match { padding: 10px; gap: 6px; }
+  .match-side { column-gap: 7px; }
+  .match-side .avatar { width: 28px; height: 28px; }
+  .vote-results { margin-top: 12px; gap: 10px; }
+  .vote-option { padding: 11px 12px; }
+  .vote-head { gap: 10px; }
+  .vote-text { font-size: .9rem; }
+  .vote-head strong { font-size: 1.25rem; }
+  .vote-option .progress-track { margin: 8px 0 6px; }
   .host-controls, .player-controls {
     position: static;
     transform: none;
@@ -177,6 +192,7 @@
   .timer-value { font-size: 3.5rem; margin: 12px 0 15px; }
   .timer-button { min-height: 56px; }
   .phase-performing:has(.stopwatch) > h1 { display: none; }
+  .phase-performing:has(.option-buttons, .hand-buttons) > .eyebrow { display: none; }
   .spectator { padding-top: 10px; }
   .spectator > .avatar { width: 44px; height: 44px; font-size: 1.2rem; border-radius: 14px; margin-bottom: 10px; }
   .spectator h2 { font-size: 1.15rem; }

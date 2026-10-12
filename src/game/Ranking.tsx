@@ -1,5 +1,5 @@
 import { Avatar } from '../components/Avatar';
-import { formatTime, participants, roundTask, type Game, type Player, type Response, type Round, type Task } from '../model';
+import { formatAnswer, formatTime, participants, roundTask, type Game, type Player, type Response, type Round, type Task } from '../model';
 
 type Props = {
   game: Game;
@@ -10,7 +10,7 @@ type Props = {
 function resultDetail(player: Player, total: boolean, round: Round | null, task: Task | null, response: Response | undefined) {
   if (total) return player.completed ? 'Oppgave fullført' : '';
   if (player.id === round?.performerId) return 'Utførte oppgaven';
-  if (task?.kind === 'individual') return response && response.guess !== null ? `Gjettet ${formatTime(response.guess)} ${task.answer.unit}` : 'Ikke svart';
+  if (task?.kind === 'challenge') return response && response.guess !== null ? `Gjettet ${formatAnswer(response.guess, task)} ${task.answer.unit}` : 'Ikke svart';
   if (!response || response.actual === null) return 'Ikke fullført';
   if (response.actual >= (task?.answer.timeout || Infinity)) return 'Tiden gikk ut';
   return `${formatTime(response.actual)} s · ${formatTime(Math.abs(response.actual - (task?.answer.target || 0)))} s unna`;

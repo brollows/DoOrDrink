@@ -19,8 +19,8 @@ const phaseViews: Record<Phase, ComponentType<PhaseProps>> = {
   guessing: GuessingPhase,
   performing: PerformingPhase,
   reveal: RevealPhase,
-  leaderboard: LeaderboardPhase,
   sips: SipsPhase,
+  leaderboard: LeaderboardPhase,
 };
 
 type Props = {

@@ -1,4 +1,4 @@
-import { participants, roundTask, type Game, type Player, type Response, type Round, type Task } from '../model';
+import { losersDrink, participants, roundTask, type Game, type Player, type Response, type Round, type Task } from '../model';
 
 /** Everything the round screen needs, derived once from the current game state. */
 export type RoundState = {
@@ -20,6 +20,10 @@ export type RoundState = {
   /** Players who can still receive sips. */
   recipients: Player[];
   myAllocation: Round['allocations'][number] | undefined;
+  /** Losers of a task where losers drink automatically (known after the reveal). */
+  drinkers: Player[];
+  /** This player has to drink in the sips step, either given sips or as a loser. */
+  mustDrink: boolean;
   ready: boolean;
   readyCount: number;
   readyTotal: number;
@@ -37,7 +41,7 @@ export function getRoundState(game: Game): RoundState | null {
   const isHost = game.hostId === game.meId;
   const performer = game.players.find(p => p.id === round.performerId);
 
-  const expectedGuesses = round.responses.filter(q => task.kind !== 'individual' || q.playerId !== round.performerId);
+  const expectedGuesses = round.responses.filter(q => task.kind !== 'challenge' || q.playerId !== round.performerId);
   const submittedGuesses = expectedGuesses.filter(q => q.submitted);
   const performingResponses = round.responses.filter(q => !round.performerId || q.playerId === round.performerId);
 
@@ -55,13 +59,18 @@ export function getRoundState(game: Game): RoundState | null {
     : performingResponses.filter(q => !q.finished)
   ).map(q => playerById(game, q.playerId));
 
+  const recipient = round.allocations.find(a => a.recipientId === game.meId);
+  const drinkers = round.responses.filter(q => q.drinks).map(q => playerById(game, q.playerId));
+
   return {
     game, me, isHost, round, task, performer, myResponse, waitingOn,
     canMonitor: isHost && (!myResponse || round.phase !== 'guessing' || myResponse.submitted || me.id === round.performerId),
     winners,
-    recipient: round.allocations.find(a => a.recipientId === game.meId),
+    recipient,
     recipients,
     myAllocation: round.allocations.find(a => a.giverId === game.meId),
+    drinkers,
+    mustDrink: losersDrink(task) ? Boolean(myResponse?.drinks) : Boolean(recipient),
     ready, readyCount, readyTotal,
   };
 }

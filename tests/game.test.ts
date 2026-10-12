@@ -6,16 +6,18 @@ import { rankingPoints } from '../src/model';
 
 const db = new PGlite();
 const users = Array.from({ length: 10 }, (_, i) => `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`);
-type State = { id: string; code: string; meId: string; hostId: string; hostPlays: boolean; status: string; players: { id: string; score: number; completed: boolean }[]; round: { id: string; phase: string; performerId: string; actual: number | null; transferred: boolean; responses: { playerId: string; submitted: boolean; guess: number | null; actual: number | null; points: number; rank: number | null }[]; winners: string[]; allocations: { giverId: string; recipientId: string }[] } };
+type State = { id: string; code: string; meId: string; hostId: string; hostPlays: boolean; status: string; players: { id: string; score: number; completed: boolean }[]; round: { id: string; taskId: string; phase: string; performerId: string; actual: number | null; transferred: boolean; responses: { playerId: string; submitted: boolean; finished: boolean; choice: string | null; opponentId: string | null; tieChoice: string | null; drinks: boolean; guess: number | null; actual: number | null; points: number; rank: number | null }[]; winners: string[]; allocations: { giverId: string; recipientId: string }[] } };
 async function identity(index: number) { await db.query("select set_config('test.user_id',$1,false)", [users[index]]); }
 async function rpc(name: string, args: unknown[]) {
   const result = await db.query<{ value: State }>(`select public.${name}(${args.map((_, i) => `$${i + 1}`).join(',')}) as value`, args);
   return result.rows[0].value;
 }
-async function create(count = 6) {
+async function create(count = 6, order = ['beer', 'ten_seconds']) {
   await identity(0);
   let game = await rpc('create_game', ['Host']);
   for (let i = 1; i < count; i++) { await identity(i); await rpc('join_game', [game.code, i === 2 ? 'Duplicate' : 'Duplicate']); }
+  // Games normally get every task in random order; tests fix the order to stay deterministic.
+  await db.query('update game_private.sessions set task_order=$1 where id=$2', [order, game.id]);
   await identity(0);
   game = await rpc('game_state', [game.id]);
   return game;
@@ -31,7 +33,7 @@ before(async () => {
   await db.exec(`create role anon; create role authenticated; create schema auth;
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.user_id',true),'')::uuid$$;`);
   // 002 schedules cleanup with pg_cron, which PGlite does not provide.
-  for (const migration of ['001_game.sql', '003_host_plays.sql'])
+  for (const migration of ['001_game.sql', '003_host_plays.sql', '004_sips_before_leaderboard.sql', '005_more_tasks.sql'])
     await db.exec(await readFile(new URL(`../supabase/migrations/${migration}`, import.meta.url), 'utf8'));
 });
 after(async () => { await db.close(); });
@@ -129,7 +131,8 @@ test('sip recipient is exclusive, winners are immune, countdown task is collecti
   await asPlayer(game, performer); game = await act(game, 'timer_start');
   await db.query("update game_private.responses set started_at=clock_timestamp()-interval '10 seconds' where round_id=$1 and player_id=$2", [game.round.id, performer]);
   game = await act(game, 'timer_stop', { value: 10 });
-  await identity(0); game = await act(game, 'next'); game = await act(game, 'next'); game = await act(game, 'next');
+  await identity(0); game = await act(game, 'next'); game = await act(game, 'next');
+  assert.equal(game.round.phase, 'sips');
   const winners = game.round.winners;
   assert.equal(winners.length, 3);
   const recipient = game.players.find(p => !winners.includes(p.id))!.id;
@@ -139,6 +142,8 @@ test('sip recipient is exclusive, winners are immune, countdown task is collecti
   await asPlayer(game, winners[1]);
   await assert.rejects(() => act(game, 'allocate', { recipientId: recipient }), /valgte spilleren først/);
   await identity(0); game = await act(game, 'next');
+  assert.equal(game.round.phase, 'leaderboard');
+  game = await act(game, 'next');
   assert.equal(game.round.performerId, null);
   game = await act(game, 'next');
   const times = [10.01, 9.97, 10.2, 11, 20];
@@ -153,7 +158,9 @@ test('sip recipient is exclusive, winners are immune, countdown task is collecti
   assert.equal(game.round.responses.find(q => q.playerId === game.players[4].id)!.points, 0);
   assert.equal(game.round.responses.find(q => q.playerId === game.players[5].id)!.points, 0);
   assert.equal(game.round.responses.find(q => q.playerId === game.players[0].id)!.rank, 1);
-  game = await act(game, 'next'); game = await act(game, 'next'); game = await act(game, 'next');
+  game = await act(game, 'next'); assert.equal(game.round.phase, 'sips');
+  game = await act(game, 'next'); assert.equal(game.round.phase, 'leaderboard');
+  game = await act(game, 'next');
   assert.equal(game.status, 'finished');
 });
 
@@ -188,7 +195,7 @@ test('private tables and update streams are protected by actual database roles',
 });
 
 test('manual results support units, host entry, hidden answers and tied last places', async () => {
-  const definition = { id: 'weight_test', title: 'Gjett vekten', description: 'Gjett vekten i gram.', kind: 'individual',
+  const definition = { id: 'weight_test', title: 'Gjett vekten', description: 'Gjett vekten i gram.', kind: 'challenge',
     answer: { method: 'manual', enteredBy: 'host', unit: 'gram', min: 0, max: 1000 } };
   await db.query('insert into game_private.tasks(id,definition) values($1,$2)', ['weight_test', definition]);
   let game = await create();
@@ -249,7 +256,8 @@ test('a non-playing host runs the game without tasks, guesses, points or sips', 
   await asPlayer(game, performer); game = await act(game, 'timer_start');
   await db.query("update game_private.responses set started_at=clock_timestamp()-interval '10 seconds' where round_id=$1 and player_id=$2", [game.round.id, performer]);
   game = await act(game, 'timer_stop', { value: 10 });
-  await identity(0); game = await act(game, 'next'); game = await act(game, 'next'); game = await act(game, 'next');
+  await identity(0); game = await act(game, 'next'); game = await act(game, 'next');
+  assert.equal(game.round.phase, 'sips');
   assert.equal(game.players.find(p => p.id === game.hostId)!.score, 0);
   assert.ok(!game.round.winners.includes(game.hostId));
   await asPlayer(game, game.round.winners[0]);
@@ -263,4 +271,143 @@ test('a non-playing host still needs two players to start', async () => {
   game = await act(game, 'host_plays', { value: true });
   game = await act(game, 'start');
   assert.equal(game.status, 'playing');
+});
+
+/** Plays a challenge round from assignment to the next round; the performer's result is `actual`. */
+async function playChallenge(game: State, actual: number) {
+  const performer = game.round.performerId;
+  await asPlayer(game, performer); game = await act(game, 'accept');
+  await identity(0); game = await act(game, 'next');
+  const guesser = game.players.find(p => p.id !== performer)!;
+  await asPlayer(game, guesser.id); await act(game, 'guess', { value: actual });
+  await identity(0); game = await act(game, 'next');
+  await asPlayer(game, performer);
+  if (game.round.taskId === 'beer') {
+    game = await act(game, 'timer_start');
+    await db.query("update game_private.responses set started_at=clock_timestamp()-($1::numeric * interval '1 second') where round_id=$2 and player_id=$3", [actual, game.round.id, performer]);
+    game = await act(game, 'timer_stop', { value: actual });
+  } else game = await act(game, 'manual_result', { value: actual });
+  await identity(0);
+  for (let i = 0; i < 4; i++) game = await act(game, 'next');
+  return game;
+}
+
+test('new games get every task in a random order', async () => {
+  const orders = new Set<string>();
+  const tasks = await db.query<{ id: string }>('select id from game_private.tasks');
+  for (let i = 0; i < 8; i++) {
+    await identity(i);
+    const game = await rpc('create_game', ['Host']);
+    const result = await db.query<{ task_order: string[] }>('select task_order from game_private.sessions where id=$1', [game.id]);
+    assert.deepEqual([...result.rows[0].task_order].sort(), tasks.rows.map(t => t.id).sort());
+    orders.add(result.rows[0].task_order.join());
+  }
+  assert.ok(orders.size > 1);
+});
+
+test('challenges stop once everyone has done one, while everyone-tasks still run', async () => {
+  const extra = { id: 'extra_challenge', title: 'Ekstra', description: 'Test', kind: 'challenge',
+    answer: { method: 'manual', enteredBy: 'performer', unit: 'cm', min: 150, max: 250 } };
+  await db.query('insert into game_private.tasks(id,definition) values($1,$2) on conflict do nothing', ['extra_challenge', extra]);
+  let game = await create(2, ['beer', 'height', 'extra_challenge', 'rps']);
+  game = await act(game, 'start');
+  assert.equal(game.round.taskId, 'beer');
+  const first = game.round.performerId;
+  game = await playChallenge(game, 12);
+  assert.equal(game.round.taskId, 'height');
+  assert.notEqual(game.round.performerId, first);
+  game = await playChallenge(game, 180);
+  assert.ok(game.players.every(p => p.completed));
+  assert.equal(game.round.taskId, 'rps', 'the remaining challenge is skipped, the everyone-task is not');
+  // assignment -> performing -> reveal -> sips -> leaderboard -> end
+  for (let i = 0; i < 5; i++) game = await act(game, 'next');
+  assert.equal(game.status, 'finished');
+});
+
+test('height challenge: the performer answers privately and guesses use the cm range', async () => {
+  let game = await create(3, ['height']);
+  game = await act(game, 'start');
+  const performer = game.round.performerId;
+  await asPlayer(game, performer); game = await act(game, 'accept');
+  await identity(0); game = await act(game, 'next');
+  const guesser = game.players.find(p => p.id !== performer)!;
+  await asPlayer(game, guesser.id);
+  await assert.rejects(() => act(game, 'guess', { value: 140 }), /utenfor/);
+  await act(game, 'guess', { value: 181 });
+  await identity(0); game = await act(game, 'next');
+  await asPlayer(game, guesser.id);
+  await assert.rejects(() => act(game, 'manual_result', { value: 180 }), /Bare den som har oppgaven/);
+  await asPlayer(game, performer); game = await act(game, 'manual_result', { value: 180 });
+  await asPlayer(game, guesser.id);
+  assert.equal((await rpc('game_state', [game.id])).round.actual, null);
+  await identity(0); game = await act(game, 'next');
+  assert.equal(game.round.actual, 180);
+  assert.equal(game.round.responses.find(q => q.playerId === guesser.id)!.rank, 1);
+});
+
+test('rock paper scissors: random pairs, the odd one plays the machine, ties replay, losers drink automatically', async () => {
+  let game = await create(3, ['rps']);
+  game = await act(game, 'start');
+  assert.equal(game.round.phase, 'assignment');
+  const machinePlayer = game.round.responses.find(q => q.opponentId === null)!.playerId;
+  const [a, b] = game.round.responses.filter(q => q.opponentId !== null).map(q => q.playerId);
+  assert.equal(game.round.responses.find(q => q.playerId === a)!.opponentId, b);
+  assert.equal(game.round.responses.find(q => q.playerId === b)!.opponentId, a);
+  game = await act(game, 'next');
+  await asPlayer(game, a); game = await act(game, 'choose', { value: 'rock' });
+  await assert.rejects(() => act(game, 'choose', { value: 'paper' }), /allerede/);
+  await asPlayer(game, b);
+  assert.equal((await rpc('game_state', [game.id])).round.responses.find(q => q.playerId === a)!.choice, null, 'hidden from the opponent');
+  game = await act(game, 'choose', { value: 'rock' });
+  const tied = game.round.responses.find(q => q.playerId === a)!;
+  assert.deepEqual([tied.choice, tied.tieChoice, tied.finished], [null, 'rock', false]);
+  game = await act(game, 'choose', { value: 'paper' });
+  await asPlayer(game, a);
+  await assert.rejects(() => act(game, 'choose', { value: 'lizard' }), /Ugyldig/);
+  game = await act(game, 'choose', { value: 'scissors' });
+  await identity(0); game = await act(game, 'next');
+  assert.equal(game.round.responses.find(q => q.playerId === a)!.points, 3);
+  assert.equal(game.round.responses.find(q => q.playerId === b)!.drinks, true);
+  assert.equal(game.round.responses.find(q => q.playerId === machinePlayer)!.drinks, true, 'not choosing loses');
+  game = await act(game, 'next');
+  assert.equal(game.round.phase, 'sips');
+  assert.deepEqual(game.round.winners, [], 'nobody hands out sips');
+  await asPlayer(game, a);
+  await assert.rejects(() => act(game, 'allocate', { recipientId: b }), /kan ikke dele ut/);
+});
+
+test('rock paper scissors against the machine replays ties until someone wins', async () => {
+  let game = await create(3, ['rps']);
+  game = await act(game, 'start'); game = await act(game, 'next');
+  const player = game.round.responses.find(q => q.opponentId === null)!.playerId;
+  await asPlayer(game, player);
+  for (let i = 0; i < 30 && !game.round.responses.find(q => q.playerId === player)!.finished; i++) {
+    game = await act(game, 'choose', { value: 'rock' });
+    const own = game.round.responses.find(q => q.playerId === player)!;
+    if (!own.finished) assert.equal(own.tieChoice, 'rock');
+  }
+  assert.equal(game.round.responses.find(q => q.playerId === player)!.choice, 'rock');
+  await identity(0); game = await act(game, 'next');
+  const result = game.round.responses.find(q => q.playerId === player)!;
+  assert.ok(result.points === 3 || result.drinks);
+  assert.ok(!(result.points === 3 && result.drinks));
+});
+
+test('would you rather: the minority and players who did not answer drink; a tie spares everyone', async () => {
+  let game = await create(4, ['wyr_naked', 'wyr_beer']);
+  game = await act(game, 'start'); game = await act(game, 'next');
+  const [p0, p1, p2, p3] = game.players.map(p => p.id);
+  for (const [id, value] of [[p0, '0'], [p1, '0'], [p2, '1']] as const) { await asPlayer(game, id); game = await act(game, 'choose', { value }); }
+  await asPlayer(game, p3);
+  await assert.rejects(() => act(game, 'choose', { value: '2' }), /Ugyldig/);
+  await identity(0); game = await act(game, 'next');
+  const drinks = (id: string) => game.round.responses.find(q => q.playerId === id)!.drinks;
+  assert.deepEqual([drinks(p0), drinks(p1), drinks(p2), drinks(p3)], [false, false, true, true]);
+  assert.ok(game.round.responses.every(q => q.points === 0));
+  for (let i = 0; i < 3; i++) game = await act(game, 'next');
+  assert.equal(game.round.taskId, 'wyr_beer');
+  game = await act(game, 'next');
+  for (const [id, value] of [[p0, '0'], [p1, '1'], [p2, '0'], [p3, '1']] as const) { await asPlayer(game, id); game = await act(game, 'choose', { value }); }
+  await identity(0); game = await act(game, 'next');
+  assert.ok(game.round.responses.every(q => !q.drinks));
 });

@@ -1,17 +1,26 @@
-import { Check, Dices, Hourglass, Timer, Wine } from 'lucide-react';
+import { Bot, Check, Dices, Hourglass } from 'lucide-react';
 import { Avatar } from '../../components/Avatar';
+import { TaskIcon } from '../TaskIcon';
 import type { PhaseProps } from './types';
 
 /** Step 1: the task is revealed and the chosen player accepts or passes it on. */
 export function AssignmentPhase({ state, busy, offline, act }: PhaseProps) {
-  const { me, round, task, performer } = state;
+  const { game, me, round, task, performer, myResponse } = state;
   const disabled = busy || offline;
+  const opponent = game.players.find(p => p.id === myResponse?.opponentId);
 
   return <>
-    <span className="task-icon">{task.kind === 'everyone' ? <Timer size={30} /> : <Wine size={30} />}</span>
+    <span className="task-icon"><TaskIcon task={task} size={30} /></span>
     <span className="eyebrow">{performer ? `${performer.name.toUpperCase()} SIN TUR` : 'EN UTFORDRING FOR ALLE'}</span>
     <h1>{task.title}</h1>
     <p className="task-description">{task.description}</p>
+
+    {task.answer.method === 'rps' && myResponse && (
+      <div className="performer-card">
+        {opponent ? <Avatar player={opponent} /> : <span className="avatar color-3" aria-hidden="true"><Bot size={22} /></span>}
+        <div><strong>{opponent?.name ?? 'Maskinen'}</strong><span>Din motstander</span></div>
+      </div>
+    )}
 
     {performer && (
       <div className="performer-card">

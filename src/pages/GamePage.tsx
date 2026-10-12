@@ -39,7 +39,7 @@ export default function GamePage() {
   const me = game.players.find(p => p.id === game.meId)!;
   const isHost = game.hostId === game.meId;
   const roundState = game.status === 'playing' ? getRoundState(game) : null;
-  const drinkMode = roundState?.recipient && roundState.round.phase === 'sips';
+  const drinkMode = roundState?.mustDrink && roundState.round.phase === 'sips';
 
   return (
     <div className={`game-layout status-${game.status} ${drinkMode ? 'drink-mode' : ''}`}>

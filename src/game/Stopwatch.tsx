@@ -70,7 +70,7 @@ export function Stopwatch({ game, response, busy, act }: Props) {
       <span className="large-icon"><Check size={38} /></span>
       <h2>{failedStop !== null ? 'Tiden må lagres' : 'Ferdig!'}</h2>
       <p className="muted">{task.kind === 'everyone' ? 'Resultatet ditt avsløres på fasiten.' : 'De andre ser tiden når verten viser fasiten.'}</p>
-      {task.kind === 'individual' && response.actual !== null && <div className="private-result"><span>Bare du ser dette</span><strong>{formatTime(response.actual)} s</strong></div>}
+      {task.kind === 'challenge' && response.actual !== null && <div className="private-result"><span>Bare du ser dette</span><strong>{formatTime(response.actual)} s</strong></div>}
       {failedStop !== null && <button className="button secondary" disabled={busy} onClick={retryStop}>Prøv å lagre igjen</button>}
     </div>
   );

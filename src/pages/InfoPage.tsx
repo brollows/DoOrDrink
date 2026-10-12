@@ -17,14 +17,17 @@ function Rules() {
   return <>
     <ol className="rules">
       <li>Verten oppretter spillet. Alle velger navn og blir med med en sekssifret kode.</li>
-      <li>En tilfeldig spiller får oppgaven. Ta den for 5 poeng, eller send den videre. Den som tar en videresendt oppgave får 10 poeng.</li>
-      <li>De andre gjetter før oppgaven utføres. Den som har oppgaven tar tiden selv.</li>
+      <li>Oppgavene kommer i tilfeldig rekkefølge. Noen er utfordringer for én spiller, andre spiller alle sammen.</li>
+      <li>I en utfordring får en tilfeldig spiller oppgaven. Ta den for 5 poeng, eller send den videre. Den som tar en videresendt oppgave får 10 poeng.</li>
+      <li>De andre gjetter før oppgaven utføres. Den som har oppgaven tar tiden eller svarer selv i appen.</li>
       <li>Fasiten avslører resultatene. Nærmest får mest poeng. Like resultater deler den beste plasseringen.</li>
       <li>De tre med flest poeng i runden får dele ut 3 slurker hver. De er immune. Førstemann til mølla velger mottaker.</li>
       <li>På «Perfekte 10» starter og stopper alle selv. Resultatet skjules til fasiten. 20 sekunder eller ingen fullføring gir 0 poeng.</li>
+      <li>I «Stein, saks, papir» får alle en tilfeldig motstander, eller maskinen ved oddetall. Uavgjort betyr nytt valg. Vinneren får 3 poeng, og taperen tar 3 slurker.</li>
+      <li>I «Ville du helst» velger alle ett av to alternativer. De i mindretall tar 3 slurker. Ved helt likt drikker ingen.</li>
       <li>Verten styrer stegene og kan gå videre før alle er klare. Manglende svar gir 0 poeng.</li>
     </ol>
-    <p className="muted">En individuell oppgave kan fullføres én gang per spiller. Fellesoppgaver bruker ikke opp en individuell tur. Spillet slutter når oppgavene er brukt, alle har fullført sin individuelle tur, eller verten avslutter. Spilldata slettes innen 24 timer.</p>
+    <p className="muted">Hver spiller tar maks én utfordring. Når alle har tatt sin, hoppes resten av utfordringene over, mens oppgavene for alle fortsetter. Spillet slutter når oppgavene er brukt opp eller verten avslutter. Spilldata slettes innen 24 timer.</p>
     <p className="muted">Ved lik plassering rundt topp tre får de som ble med først dele ut. Hvis alle tilgjengelige mottakere er valgt eller immune, kan verten gå videre.</p>
     <p className="muted">Poeng: sisteplass får 1. Opp til tredjeplass øker det med 1 per plass; andreplass får 2 mer enn tredjeplass og førsteplass får 3 mer enn andreplass. Ved fem som gjetter: 1–2–3–5–8.</p>
   </>;

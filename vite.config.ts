@@ -17,7 +17,17 @@ export default defineConfig({
         { src: '/icon-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
       ]
     },
-    workbox: { navigateFallback: '/index.html', cleanupOutdatedCaches: true }
+    workbox: {
+      navigateFallback: '/index.html',
+      // QR/shared join links always load the latest app from the network,
+      // so an outdated cached app can never swallow the code.
+      navigateFallbackDenylist: [/^\/join\//],
+      cleanupOutdatedCaches: true,
+      // Activate a new version as soon as it is downloaded; it is used on the next page load.
+      // Open pages are not reloaded, so a running round is never interrupted.
+      skipWaiting: true,
+      clientsClaim: true
+    }
   })],
   server: { port: 5173, strictPort: true },
   build: { rollupOptions: { output: { manualChunks: { supabase: ['@supabase/supabase-js'], react: ['react', 'react-dom', 'react-router-dom'] } } } }

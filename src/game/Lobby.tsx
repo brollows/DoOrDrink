@@ -73,7 +73,7 @@ export function Lobby({ game, isHost, busy, offline, act, onError }: Props) {
         <p className="muted">Del koden med gjengen. Verten starter når dere er klare.</p>
         {isHost ? <JoinPanel code={game.code} onError={onError} /> : <JoinCodeButton code={game.code} onError={onError} />}
         <div className="round-summary">
-          <div><Dices size={20} /><strong>2</strong><span>oppgaver</span></div>
+          <div><Dices size={20} /><strong>{game.taskCount}</strong><span>oppgaver</span></div>
           <div><Users size={20} /><strong>{playerCount}</strong><span>spillere</span></div>
           <div><Trophy size={20} /><strong>1</strong><span>vinner</span></div>
         </div>

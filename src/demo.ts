@@ -1,15 +1,31 @@
 import {
+  beats,
   participants,
   rankingPoints,
   roundPhases,
+  tasks,
   type Game,
+  type Hand,
   type Player,
   type Response,
 } from "./model";
 
-type DemoGame = Game & { usedTasks: string[]; declined: string[] };
+/** Local single-device game. Mirrors the server rules in supabase/migrations. */
+type DemoGame = Game & {
+  taskOrder: string[];
+  usedTasks: string[];
+  declined: string[];
+};
 const key = "do-or-drink-demo";
 const uuid = () => crypto.randomUUID();
+const pick = <T,>(items: T[]) =>
+  items[Math.floor(Math.random() * items.length)];
+const shuffle = <T,>(items: T[]) =>
+  items
+    .map((item) => ({ item, order: Math.random() }))
+    .sort((a, b) => a.order - b.order)
+    .map(({ item }) => item);
+const handNames: Hand[] = ["rock", "paper", "scissors"];
 const read = (): DemoGame => {
   const raw = localStorage.getItem(key);
   if (!raw) throw new Error("Prøvespillet er avsluttet.");
@@ -28,6 +44,7 @@ export function createDemo(name: string): Game {
     "Nora",
     "Emma",
   ].map((name) => ({ id: uuid(), name, score: 0, completed: false }));
+  const taskOrder = shuffle(Object.keys(tasks));
   const game: DemoGame = {
     id: "demo",
     code: "123456",
@@ -36,9 +53,10 @@ export function createDemo(name: string): Game {
     meId: players[0].id,
     status: "lobby",
     expiresAt: new Date(Date.now() + 86400000).toISOString(),
-    taskCount: 2,
+    taskCount: taskOrder.length,
     players,
     round: null,
+    taskOrder,
     usedTasks: [],
     declined: [],
   };
@@ -46,22 +64,29 @@ export function createDemo(name: string): Game {
   return game;
 }
 
+/** What one player is allowed to see, like game_state on the server. */
 export function demoState(meId?: string): Game {
   const game = structuredClone(read());
   if (meId && game.players.some((p) => p.id === meId)) game.meId = meId;
   const round = game.round;
   if (round && !["reveal", "leaderboard", "sips"].includes(round.phase)) {
+    const challenge = tasks[round.taskId].kind === "challenge";
     if (game.meId !== round.performerId) round.actual = null;
     round.winners = [];
-    round.responses = round.responses.map((q) => ({
-      ...q,
-      guess: q.playerId === game.meId ? q.guess : null,
-      actual:
-        q.playerId === game.meId && round.taskId === "beer" ? q.actual : null,
-      startedAt: q.playerId === game.meId ? q.startedAt : null,
-      points: 0,
-      rank: null,
-    }));
+    round.responses = round.responses.map((q) => {
+      const mine = q.playerId === game.meId;
+      return {
+        ...q,
+        guess: mine ? q.guess : null,
+        actual: mine && challenge ? q.actual : null,
+        startedAt: mine ? q.startedAt : null,
+        choice: mine ? q.choice : null,
+        botChoice: null,
+        drinks: false,
+        points: 0,
+        rank: null,
+      };
+    });
   } else if (round) {
     round.responses = round.responses.map((q) => ({
       ...q,
@@ -72,89 +97,171 @@ export function demoState(meId?: string): Game {
 }
 
 function nextRound(game: DemoGame) {
-  const taskId = ["beer", "ten_seconds"].find(
-    (t) => !game.usedTasks.includes(t),
-  );
   const pool = participants(game).filter((p) => !p.completed);
-  if (!taskId || !pool.length) {
+  // Challenges only while someone still has their challenge left; everyone-tasks always.
+  const taskId = game.taskOrder.find(
+    (t) =>
+      !game.usedTasks.includes(t) &&
+      (tasks[t].kind === "everyone" || pool.length > 0),
+  );
+  if (!taskId) {
     game.status = "finished";
     return;
   }
-  const performer = pool[Math.floor(Math.random() * pool.length)];
+  const task = tasks[taskId];
+  const challenge = task.kind === "challenge";
   game.usedTasks.push(taskId);
   game.declined = [];
   game.status = "playing";
+  const responses: Response[] = participants(game).map((p) => ({
+    playerId: p.id,
+    submitted: false,
+    guess: null,
+    actual: null,
+    startedAt: null,
+    finished: false,
+    points: 0,
+    rank: null,
+    choice: null,
+    opponentId: null,
+    botChoice: null,
+    tieChoice: null,
+    drinks: false,
+  }));
+  if (task.answer.method === "rps") {
+    // Random pairs; with an odd number the last player meets the machine.
+    const order = shuffle(responses);
+    for (let i = 0; i + 1 < order.length; i += 2) {
+      order[i].opponentId = order[i + 1].playerId;
+      order[i + 1].opponentId = order[i].playerId;
+    }
+  }
   game.round = {
     id: uuid(),
     number: game.usedTasks.length,
     taskId,
+    task,
     phase: "assignment",
-    performerId: taskId === "beer" ? performer.id : null,
-    accepted: taskId !== "beer",
+    performerId: challenge ? pick(pool).id : null,
+    accepted: !challenge,
     transferred: false,
     awarded: false,
     actual: null,
     winners: [],
     allocations: [],
-    responses: participants(game).map((p) => ({
-      playerId: p.id,
-      submitted: false,
-      guess: null,
-      actual: null,
-      startedAt: null,
-      finished: false,
-      points: 0,
-      rank: null,
-    })),
+    responses,
   };
 }
 
-function award(game: DemoGame) {
+function awardRps(responses: Response[]) {
+  for (const q of responses) {
+    const opponent = responses.find((o) => o.playerId === q.opponentId);
+    const won =
+      q.choice !== null &&
+      (q.opponentId === null
+        ? beats(q.choice, q.botChoice!)
+        : opponent?.choice == null || beats(q.choice, opponent.choice));
+    if (won) q.points = 3;
+    else q.drinks = true;
+  }
+}
+
+function awardChoice(responses: Response[]) {
+  const first = responses.filter((q) => q.choice === "0").length;
+  const second = responses.filter((q) => q.choice === "1").length;
+  const minority = first < second ? "0" : second < first ? "1" : null;
+  for (const q of responses)
+    q.drinks = q.choice === null || q.choice === minority;
+}
+
+function awardScores(game: DemoGame) {
   const r = game.round!;
-  if (r.awarded) return;
-  if (r.taskId === "ten_seconds") {
+  const task = tasks[r.taskId];
+  const { min, max, target, timeout } = task.answer;
+  const challenge = task.kind === "challenge";
+  if (!challenge && timeout) {
     r.responses.forEach((q) => {
       if (
         q.startedAt &&
         !q.finished &&
-        Date.now() - Date.parse(q.startedAt) >= 20000
+        Date.now() - Date.parse(q.startedAt) >= timeout * 1000
       ) {
         q.finished = true;
         q.submitted = true;
-        q.actual = 20;
+        q.actual = timeout;
       }
     });
   }
-  const participants = r.responses.filter((q) => q.playerId !== r.performerId);
+  const guessers = r.responses.filter((q) => q.playerId !== r.performerId);
   const distance = (q: Response) =>
-    r.taskId === "beer"
-      ? Math.abs(q.guess! - Math.min(r.actual!, 60))
-      : Math.abs(q.actual! - 10);
-  const valid = participants
+    challenge
+      ? Math.abs(q.guess! - Math.max(min, Math.min(r.actual!, max)))
+      : Math.abs(q.actual! - target!);
+  const valid = guessers
     .filter((q) =>
-      r.taskId === "beer"
+      challenge
         ? q.guess !== null && r.actual !== null
-        : q.finished && q.actual! < 20,
+        : q.finished && q.actual! < timeout!,
     )
     .sort((a, b) => distance(a) - distance(b));
   valid.forEach((q) => {
     q.rank = valid.findIndex((other) => distance(other) === distance(q)) + 1;
-    q.points = rankingPoints(participants.length, q.rank);
+    q.points = rankingPoints(guessers.length, q.rank);
   });
   if (r.performerId && r.actual !== null) {
     r.responses.find((q) => q.playerId === r.performerId)!.points =
       r.transferred ? 10 : 5;
     game.players.find((p) => p.id === r.performerId)!.completed = true;
   }
-  r.winners = [...r.responses]
-    .filter((q) => q.points > 0)
-    .sort((a, b) => b.points - a.points)
-    .slice(0, 3)
-    .map((q) => q.playerId);
+}
+
+function award(game: DemoGame) {
+  const r = game.round!;
+  if (r.awarded) return;
+  const task = tasks[r.taskId];
+  if (task.answer.method === "rps") awardRps(r.responses);
+  else if (task.answer.method === "choice") awardChoice(r.responses);
+  else awardScores(game);
+  // Only allocate-tasks have sip givers.
+  r.winners =
+    task.sips === "losers"
+      ? []
+      : [...r.responses]
+          .filter((q) => q.points > 0)
+          .sort((a, b) => b.points - a.points)
+          .slice(0, 3)
+          .map((q) => q.playerId);
   game.players.forEach((p) => {
     p.score += r.responses.find((q) => q.playerId === p.id)?.points ?? 0;
   });
   r.awarded = true;
+}
+
+function choose(r: NonNullable<Game["round"]>, q: Response, value: unknown) {
+  const method = tasks[r.taskId].answer.method;
+  if (r.phase !== "performing" || r.awarded || !["rps", "choice"].includes(method))
+    throw new Error("Du kan ikke velge nå.");
+  if (q.choice !== null) throw new Error("Du har allerede valgt.");
+  const picked = String(value);
+  if (method === "choice") {
+    if (!["0", "1"].includes(picked)) throw new Error("Ugyldig valg.");
+    q.choice = picked;
+    q.finished = true;
+    return;
+  }
+  if (!handNames.includes(picked as Hand)) throw new Error("Ugyldig valg.");
+  if (q.opponentId === null) {
+    const machine = pick(handNames);
+    if (machine === picked) q.tieChoice = picked;
+    else Object.assign(q, { choice: picked, botChoice: machine, tieChoice: null, finished: true });
+    return;
+  }
+  const opponent = r.responses.find((o) => o.playerId === q.opponentId)!;
+  if (opponent.choice === picked) {
+    // Same hand: both choose again.
+    for (const player of [q, opponent])
+      Object.assign(player, { choice: null, tieChoice: picked, finished: false });
+  } else Object.assign(q, { choice: picked, tieChoice: null, finished: true });
 }
 
 export function demoAction(
@@ -182,8 +289,10 @@ export function demoAction(
       throw new Error("Runden er endret.");
     if (["next", "back"].includes(action) && payload.phase !== r.phase)
       throw new Error("Steget er endret.");
+    const task = tasks[r.taskId];
+    const challenge = task.kind === "challenge";
     const q = r.responses.find((q) => q.playerId === meId);
-    if (["guess", "timer_start", "timer_stop"].includes(action) && !q)
+    if (["guess", "timer_start", "timer_stop", "choose"].includes(action) && !q)
       throw new Error("Du deltar ikke i denne runden.");
     if (action === "accept" || action === "decline") {
       if (
@@ -203,7 +312,7 @@ export function demoAction(
             "Ingen andre kan ta oppgaven. Verten kan hoppe over.",
           );
         game.declined.push(meId);
-        r.performerId = pool[Math.floor(Math.random() * pool.length)].id;
+        r.performerId = pick(pool).id;
         r.transferred = true;
       }
     } else if (action === "guess") {
@@ -214,8 +323,8 @@ export function demoAction(
         q!.guess !== null ||
         meId === r.performerId ||
         !Number.isFinite(value) ||
-        value < 0 ||
-        value > 60
+        value < task.answer.min ||
+        value > task.answer.max
       )
         throw new Error("Du kan ikke svare nå.");
       q!.guess = value;
@@ -225,7 +334,8 @@ export function demoAction(
         r.phase !== "performing" ||
         r.awarded ||
         q!.finished ||
-        (r.taskId === "beer" && meId !== r.performerId)
+        task.answer.method !== "stopwatch" ||
+        (challenge && meId !== r.performerId)
       )
         throw new Error("Du kan ikke bruke timeren nå.");
       if (action === "timer_start") {
@@ -233,14 +343,32 @@ export function demoAction(
         q!.startedAt = new Date().toISOString();
       } else {
         if (!q!.startedAt) throw new Error("Timeren er ikke startet.");
-        q!.actual =
-          r.taskId === "beer"
-            ? Number(payload.value)
-            : Math.min(20, Number(payload.value));
+        const value = Number(payload.value);
+        q!.actual = challenge
+          ? value
+          : Math.min(task.answer.timeout!, value);
         q!.finished = true;
         q!.submitted = true;
-        if (r.taskId === "beer") r.actual = q!.actual;
+        if (challenge) r.actual = q!.actual;
       }
+    } else if (action === "manual_result") {
+      const value = Number(payload.value);
+      if (
+        r.phase !== "performing" ||
+        r.awarded ||
+        r.actual !== null ||
+        task.answer.method !== "manual" ||
+        (task.answer.enteredBy === "host" ? !host : meId !== r.performerId)
+      )
+        throw new Error("Du kan ikke oppgi fasit nå.");
+      if (!Number.isFinite(value) || value < 0)
+        throw new Error("Oppgi en gyldig verdi.");
+      r.actual = value;
+      const performer = r.responses.find((o) => o.playerId === r.performerId)!;
+      performer.actual = value;
+      performer.finished = true;
+    } else if (action === "choose") {
+      choose(r, q!, payload.value);
     } else if (action === "allocate") {
       const target = String(payload.recipientId);
       if (
@@ -265,7 +393,7 @@ export function demoAction(
       if (action === "back") {
         if (!index) throw new Error("Dette er første steg.");
         r.phase = phases[index - 1];
-      } else if (r.phase === "sips") nextRound(game);
+      } else if (r.phase === "leaderboard") nextRound(game);
       else if (r.phase === "assignment" && !r.accepted) {
         award(game);
         nextRound(game);

@@ -18,7 +18,7 @@ export function HostControls({ state, busy, offline, act, onConfirm }: Props) {
   const disabled = busy || offline;
   // Moving on before everyone is done needs a confirmation.
   const next = () => { if (!ready && !round.awarded) onConfirm('next'); else void act('next'); };
-  const nextLabel = round.phase === 'sips' ? 'Neste runde' : round.phase === 'assignment' && !round.accepted ? 'Hopp over' : 'Gå videre';
+  const nextLabel = round.phase === 'leaderboard' ? 'Neste runde' : round.phase === 'assignment' && !round.accepted ? 'Hopp over' : 'Gå videre';
 
   return (
     <footer className="host-controls">

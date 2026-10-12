@@ -1,6 +1,6 @@
 # DoOrDrink
 
-A Norwegian multiplayer PWA built with React, Vite, TypeScript, React Router, Supabase and Netlify. The first release contains **Bånn i bøtta** and **Perfekte 10**.
+A Norwegian multiplayer PWA built with React, Vite, TypeScript, React Router, Supabase and Netlify. Tasks: **Bånn i bøtta**, **Kjenn kompisen**, **Perfekte 10**, **Stein, saks, papir** and five **Ville du helst** questions.
 
 ## Run locally
 
@@ -20,7 +20,7 @@ The local project is connected to `https://mavqjmobgreyoyuqvquv.supabase.co`. Bo
 
 1. Create a dedicated Supabase project.
 2. Enable **Authentication → Sign In / Providers → Anonymous Sign-Ins**. Players never need to provide an email or password.
-3. Run `supabase/migrations/001_game.sql` in the SQL Editor, then `002_cleanup.sql`, then `003_host_plays.sql`. Run each migration once, in order; do not rerun earlier ones on an existing database.
+3. Run `supabase/migrations/001_game.sql` in the SQL Editor, then `002_cleanup.sql`, `003_host_plays.sql`, `004_sips_before_leaderboard.sql` and `005_more_tasks.sql`. Run each migration once, in order; do not rerun earlier ones on an existing database.
 4. Copy `.env.example` to `.env`, and enter the project's URL and public publishable/anon key. Never put a `service_role` or secret key in a `VITE_` variable.
 5. Restart the development server.
 6. Verify that `public.session_updates` is enabled in the `supabase_realtime` publication. The first migration adds it when the publication exists.
@@ -41,15 +41,19 @@ Connect this folder's Git repository to a Netlify site, or import the repository
 
 Deploy after setting the environment variables; Vite embeds them during the build. `netlify.toml` includes the client-side routing fallback and security headers. HTTPS, the manifest, service worker and PNG icons support adding the app to an iPhone home screen. Open the deployed URL in Safari, use Share, then **Add to Home Screen**.
 
-The service worker caches the app shell, not Supabase data. Online multiplayer requires a connection. A new app version activates after the old tabs are closed, avoiding a forced reload during a round.
+The service worker caches the app shell, not Supabase data. Online multiplayer requires a connection. A new app version activates as soon as it is downloaded and is used on the next page load; open pages are never force-reloaded, so a running round is not interrupted. Join links (`/join/<code>`) always load from the network, so a phone with an outdated cached app still opens the join form with the code filled in.
 
 ## Game rules
 
 - By default the host plays and participates in the random pool. In the lobby the host can turn off **Jeg spiller med** to only run the game, for example on a TV. A non-playing host gets no tasks, guesses, timers, points or sips, is left out of rankings, and sees answer status immediately. The setting is locked once the game starts, and at least two other players are then required. Names can be identical; all decisions use player IDs.
 - The host's lobby shows a QR code for `/join/<code>`, which opens **Bli med** with the code filled in.
-- Each task is used once per session. Successfully completing an individual task removes that player from the individual pool. Declining keeps the player eligible for a later task, but prevents them from being redrawn within the same refusal chain.
+- Every game gets all tasks in a random order, and each task is used once. Tasks are either a **challenge** (one player performs, the others guess) or **everyone** (all players take part).
+- Successfully completing a challenge removes that player from the challenge pool. Declining keeps the player eligible for a later challenge, but prevents them from being redrawn within the same refusal chain. Once every player has completed a challenge, the remaining challenges are skipped while everyone-tasks still run.
 - Completing an individual task awards 5 points; completing a transferred task awards 10. Host advancement without a result awards no completion bonus and does not consume that player's individual turn.
-- The game ends after the last task or when the individual pool is empty. Collective tasks do not mark every player as having completed an individual turn. This prevents the ten-second task from immediately using up everyone's turn.
+- The game ends when no task can run anymore, or when the host ends it. Everyone-tasks never mark players as having completed their challenge.
+- **Stein, saks, papir**: random pairs; with an odd number one player meets the machine. A tie means both choose again. The winner gets 3 points; the loser, or a player who did not choose, drinks 3 sips automatically.
+- **Ville du helst**: everyone picks one of two options. The minority and players who did not answer drink 3 sips automatically; an exact tie spares everyone who answered. No points.
+- In these two tasks nobody hands out sips; losers get the red drink screen directly.
 - Ranking uses absolute distance to the answer. Individual answers are clamped to the task's guessing bounds for scoring and reveal. The beer task displays 60 if the result exceeds 60.
 - Position scores start at 1 at the bottom. The increase is 1 up to third place, 2 between third and second, and 3 between second and first. Nine guessers: `1,2,3,4,5,6,7,9,12`. Five guessers: `1,2,3,5,8`. The latter follows the written rule rather than the conflicting example ending in 7. With one guesser the award is 1; with two it is `1,4`.
 - Ties use competition ranking: two first places both receive first-place points; the next player is third. Two last places receive the better occupied position's points. The score schedule is fixed by the round's participant count; missing responses get 0 rather than changing the available point scale.
@@ -68,10 +72,12 @@ The service worker caches the app shell, not Supabase data. Online multiplayer r
 - `supabase/migrations/001_game.sql`: private game tables, server-side state machine, ranking, authorization and filtered snapshots.
 - `supabase/migrations/002_cleanup.sql`: session expiry scheduler.
 - `supabase/migrations/003_host_plays.sql`: optional non-playing host.
+- `supabase/migrations/004_sips_before_leaderboard.sql`: round order reveal → sips → leaderboard.
+- `supabase/migrations/005_more_tasks.sql`: random task order, challenge/everyone kinds, rock paper scissors, would you rather and the height challenge.
 
 Private tables cannot be read or written by client roles. The exposed functions check `auth.uid()`, membership, phase and host/performer permissions. Hidden answers never enter a spectator's pre-reveal snapshot or Realtime event. Realtime sends only a session ID and version. The database session lock and allocation uniqueness constraint make simultaneous allocations safe. Host next/back requests include their expected phase to prevent duplicate requests skipping steps.
 
-Tasks are data-driven in `game_private.tasks.definition`. Definitions declare `kind`, `answer.method`, `answer.enteredBy`, units, bounds and optional target/timeout. The engine supports individual stopwatches and manually entered individual results, including results entered by the host. Add a task definition and include its ID in future sessions' `task_order` to add a task without rewriting scoring. Only the two requested tasks are included in the initial order. Add corresponding entries in `src/model.ts` if the local demo should support them too.
+Tasks are data-driven in `game_private.tasks.definition`; the field reference is at the top of `005_more_tasks.sql`. Methods: `stopwatch`, `manual` (entered by host or performer), `rps` and `choice` (two `options`). New games include every row in `game_private.tasks`, so a new would-you-rather question or manual challenge only needs an insert. Add the same definition to `tasks` in `src/model.ts` so the local demo includes it.
 
 ## Validation
 

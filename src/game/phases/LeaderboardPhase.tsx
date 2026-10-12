@@ -1,7 +1,7 @@
 import { Ranking } from '../Ranking';
 import type { PhaseProps } from './types';
 
-/** Step 5: total standings so far. */
+/** Last step: total standings so far, after the sips are handed out. */
 export function LeaderboardPhase({ state }: PhaseProps) {
   return <>
     <span className="eyebrow">SAMMENLAGT ETTER RUNDE {state.round.number}</span>

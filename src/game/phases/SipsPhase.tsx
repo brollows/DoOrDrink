@@ -1,15 +1,23 @@
 import { Check, Hourglass, ShieldCheck, Wine } from 'lucide-react';
 import { Avatar } from '../../components/Avatar';
+import { losersDrink } from '../../model';
 import type { PhaseProps } from './types';
 
-/** Full-screen message for a player who has been given sips. */
+/** Why this player drinks, as the eyebrow of the red drink screen. */
+function drinkReason(state: PhaseProps['state']) {
+  const { game, task, recipient, myResponse } = state;
+  if (!losersDrink(task)) return `${game.players.find(p => p.id === recipient!.giverId)?.name.toUpperCase()} HAR VALGT DEG`;
+  if (myResponse?.choice === null) return 'DU SVARTE IKKE';
+  return task.answer.method === 'rps' ? 'DU TAPTE' : 'DU HAVNET I MINDRETALL';
+}
+
+/** Full-screen message for a player who has been given sips or lost. */
 function DrinkMessage({ state }: { state: PhaseProps['state'] }) {
-  const { game, me, recipient } = state;
-  const giver = game.players.find(p => p.id === recipient!.giverId);
+  const { me } = state;
   return (
     <div className="drink-content">
       <Wine size={60} />
-      <span className="eyebrow">{giver?.name.toUpperCase()} HAR VALGT DEG</span>
+      <span className="eyebrow">{drinkReason(state)}</span>
       <h1>Ta 3<br />slurker.</h1>
       <p>Denne er til deg, {me.name}.</p>
       <span className="pill">Venter på neste runde</span>
@@ -34,11 +42,27 @@ function RecipientPicker({ state, busy, offline, act }: PhaseProps) {
   );
 }
 
-/** Step 6: the round's top three hand out sips. */
+/** Losers drink automatically: everyone else sees who has to drink. */
+function LosersDrink({ state }: { state: PhaseProps['state'] }) {
+  const { drinkers } = state;
+  return <>
+    <span className="eyebrow">SLURKER</span>
+    <h1>{drinkers.length ? 'Skål!' : 'Ingen drikker.'}</h1>
+    <p className="task-description">{drinkers.length ? 'Disse tar 3 slurker hver:' : 'Det ble helt likt denne gangen.'}</p>
+    {drinkers.length > 0 && (
+      <div className="giver-list">
+        {drinkers.map(p => <div className="giver" key={p.id}><Avatar player={p} small /><strong>{p.name}</strong><Wine size={17} /><span className="allocation-status">3 slurker</span></div>)}
+      </div>
+    )}
+  </>;
+}
+
+/** Right after the reveal: the round's top three hand out sips, or the losers drink. */
 export function SipsPhase(props: PhaseProps) {
   const { state } = props;
-  const { game, me, round, winners, recipient, myAllocation } = state;
-  if (recipient) return <DrinkMessage state={state} />;
+  const { game, me, round, task, winners, myAllocation, mustDrink } = state;
+  if (mustDrink) return <DrinkMessage state={state} />;
+  if (losersDrink(task)) return <LosersDrink state={state} />;
 
   const hasAllocated = (playerId: string) => round.allocations.some(a => a.giverId === playerId);
   return <>
