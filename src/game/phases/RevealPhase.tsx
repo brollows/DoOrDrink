@@ -97,7 +97,7 @@ export function RevealPhase({ state }: PhaseProps) {
     <h1>Fasiten.</h1>
     {task.kind === 'challenge' ? (
       <div className="reveal-value">
-        <span>{performer?.name}{method === 'stopwatch' ? ' brukte' : ' sitt svar'}</span>
+        <span>{performer?.name}{method === 'stopwatch' || task.answer.input === 'counter' ? ' brukte' : ' sitt svar'}</span>
         <strong>{round.actual === null ? '–' : formatAnswer(Math.max(min, Math.min(round.actual, max)), task)}<small>{unit}</small></strong>
         <p className="muted">
           {round.actual === null ? 'Oppgaven ble ikke fullført. Ingen poeng denne runden.'

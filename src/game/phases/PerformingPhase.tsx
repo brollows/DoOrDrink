@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Hourglass, ShieldCheck } from 'lucide-react';
+import { Check, Hourglass, RotateCcw, ShieldCheck } from 'lucide-react';
 import { Avatar } from '../../components/Avatar';
 import { hands, type Hand } from '../../model';
 import { Stopwatch } from '../Stopwatch';
@@ -25,6 +25,35 @@ function ManualEntry({ state, busy, offline, act }: PhaseProps) {
           <button className="button primary wide" disabled={busy || offline || round.awarded}>Lagre fasit</button>
         </form>
       )}
+    </div>
+  );
+}
+
+/**
+ * The performer taps once per failed attempt and "Klarte det!" on success, which saves the total.
+ * The count survives a reload, like the stopwatch.
+ */
+function AttemptCounter({ state, busy, offline, act }: PhaseProps) {
+  const { round } = state;
+  const storageKey = `do-or-drink-attempts:${round.id}`;
+  const [misses, setMisses] = useState(() => Number(localStorage.getItem(storageKey)) || 0);
+  const saved = round.responses.find(q => q.playerId === round.performerId)?.finished;
+  const update = (value: number) => { setMisses(value); localStorage.setItem(storageKey, String(value)); };
+  const succeed = async () => {
+    if (await act('manual_result', { value: misses + 1 })) localStorage.removeItem(storageKey);
+  };
+  const disabled = busy || offline || round.awarded;
+
+  if (saved) return <div className="waiting"><Check size={20} /> Antall forsøk er lagret</div>;
+  return (
+    <div className="attempt-counter">
+      <div className="timer-value">{misses + 1}<span>{misses ? `forsøk nå · ${misses} bom` : 'første forsøk'}</span></div>
+      <div className="choice-buttons">
+        <button className="button primary wide" disabled={disabled} onClick={() => void succeed()}><Check size={19} /> Klarte det!</button>
+        <button className="button secondary wide" disabled={disabled} onClick={() => update(misses + 1)}>Bom, prøv igjen</button>
+      </div>
+      {misses > 0 && <button className="undo-button" disabled={disabled} onClick={() => update(misses - 1)}><RotateCcw size={15} /> Angre siste bom</button>}
+      <p className="muted">Ikke si antallet høyt. De andre ser det på fasiten.</p>
     </div>
   );
 }
@@ -85,7 +114,7 @@ function Spectator({ state }: { state: PhaseProps['state'] }) {
     <div className="spectator">
       {performer ? <>
         <Avatar player={performer} />
-        <h2>{performer.name} {finished ? 'er ferdig!' : task.answer.method === 'manual' ? 'svarer i appen' : 'tar utfordringen'}</h2>
+        <h2>{performer.name} {finished ? 'er ferdig!' : task.answer.input === 'counter' ? 'er i gang' : task.answer.method === 'manual' ? 'svarer i appen' : 'tar utfordringen'}</h2>
         <p className="muted">Resultatet avsløres på fasiten. Følg med på oppgaven!</p>
       </> : <>
         <span className="large-icon"><TaskIcon task={task} size={34} /></span>
@@ -111,6 +140,7 @@ export function PerformingPhase(props: PhaseProps) {
     <h1>{task.title}</h1>
     {method === 'choice' ? <OptionPicker {...props} />
       : method === 'rps' && myResponse ? <HandPicker {...props} />
+      : entersManually && task.answer.input === 'counter' ? <AttemptCounter {...props} />
       : entersManually ? <ManualEntry {...props} />
       : usesStopwatch && myResponse ? <Stopwatch key={`${round.id}:${me.id}`} game={game} response={myResponse} busy={busy || offline} act={act} />
       : <Spectator state={state} />}

@@ -65,3 +65,8 @@
 .vote-option small{color:var(--muted);font-size:.8rem}
 .vote-summary{font-size:.9rem;margin-top:16px}
 @media(hover:hover){.hand-button:hover:not(:disabled),.option-button:hover:not(:disabled){border-color:var(--lime)}}
+.attempt-counter{max-width:380px;margin:10px auto 0}
+.attempt-counter .timer-value{margin:10px 0 24px}
+.attempt-counter>p{font-size:.85rem;margin-top:16px}
+.undo-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;margin-top:8px;padding:0 12px;background:none;border:0;border-radius:10px;color:var(--muted);font-size:.85rem}
+@media(hover:hover){.undo-button:hover:not(:disabled){color:var(--text)}}

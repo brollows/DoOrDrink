@@ -7,7 +7,8 @@ import type { PhaseProps } from './types';
 export function GuessingPhase({ state, busy, offline, act }: PhaseProps) {
   const { me, round, task, performer, myResponse } = state;
   const { min, max, unit, step = 0.1 } = task.answer;
-  const [guess, setGuess] = useState((min + max) / 2);
+  // Start in the middle, on a value the slider can actually land on.
+  const [guess, setGuess] = useState(() => Number((min + Math.round((max - min) / 2 / step) * step).toFixed(6)));
 
   return <>
     {!myResponse?.submitted && <>
@@ -33,7 +34,7 @@ export function GuessingPhase({ state, busy, offline, act }: PhaseProps) {
         <input id="guess-slider" aria-label={`Gjett antall ${unit}`} type="range" min={min} max={max} step={step} value={guess} disabled={round.awarded}
           style={{ '--range-progress': `${(guess - min) / (max - min) * 100}%` } as CSSProperties}
           onChange={e => setGuess(Number(e.target.value))} />
-        <div className="range-labels"><span>{min} {unit}</span><span>{max} {unit}</span></div>
+        <div className="range-labels"><span>{min.toLocaleString('nb-NO')} {unit}</span><span>{max.toLocaleString('nb-NO')} {unit}</span></div>
         <button className="button primary wide" disabled={busy || offline || round.awarded} onClick={() => void act('guess', { value: guess })}>Oppgi svar <Check size={19} /></button>
       </div>
     )}

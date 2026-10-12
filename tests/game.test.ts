@@ -33,7 +33,7 @@ before(async () => {
   await db.exec(`create role anon; create role authenticated; create schema auth;
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.user_id',true),'')::uuid$$;`);
   // 002 schedules cleanup with pg_cron, which PGlite does not provide.
-  for (const migration of ['001_game.sql', '003_host_plays.sql', '004_sips_before_leaderboard.sql', '005_more_tasks.sql', '006_would_you_rather_points.sql'])
+  for (const migration of ['001_game.sql', '003_host_plays.sql', '004_sips_before_leaderboard.sql', '005_more_tasks.sql', '006_would_you_rather_points.sql', '007_more_challenges.sql'])
     await db.exec(await readFile(new URL(`../supabase/migrations/${migration}`, import.meta.url), 'utf8'));
 });
 after(async () => { await db.close(); });
@@ -414,4 +414,28 @@ test('would you rather: the majority scores 3, the minority and non-answerers dr
   for (const [id, value] of [[p0, '0'], [p1, '1'], [p2, '0'], [p3, '1']] as const) { await asPlayer(game, id); game = await act(game, 'choose', { value }); }
   await identity(0); game = await act(game, 'next');
   assert.ok(game.round.responses.every(q => !q.drinks && q.points === 0));
+});
+
+test('steps, snap streak and cup flip are challenges with their own guess ranges', async () => {
+  for (const [task, below, lowest, highest, above] of [['steps', -1, 0, 30000, 30001], ['snap_streak', -1, 0, 5000, 5001], ['cup_flip', 0, 1, 200, 201]] as const) {
+    let game = await create(3, [task]);
+    game = await act(game, 'start');
+    assert.equal(game.round.taskId, task);
+    assert.ok(game.round.performerId, 'a challenge has a performer');
+    const performer = game.round.performerId;
+    await asPlayer(game, performer); game = await act(game, 'accept');
+    await identity(0); game = await act(game, 'next');
+    const [first, second] = game.players.filter(p => p.id !== performer);
+    await asPlayer(game, first.id);
+    await assert.rejects(() => act(game, 'guess', { value: below }), /utenfor/);
+    await assert.rejects(() => act(game, 'guess', { value: above }), /utenfor/);
+    await act(game, 'guess', { value: lowest });
+    await asPlayer(game, second.id); await act(game, 'guess', { value: highest });
+    await identity(0); game = await act(game, 'next');
+    await asPlayer(game, performer); game = await act(game, 'manual_result', { value: highest - 1 });
+    await identity(0); game = await act(game, 'next');
+    const rank = (id: string) => game.round.responses.find(q => q.playerId === id)!.rank;
+    assert.deepEqual([rank(second.id), rank(first.id)], [1, 2], 'closest guess wins');
+    assert.equal(game.round.responses.find(q => q.playerId === performer)!.points, 5);
+  }
 });

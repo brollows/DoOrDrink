@@ -40,6 +40,8 @@ export type Task = {
   options?: [string, string];
   answer: {
     method: 'stopwatch' | 'manual' | 'rps' | 'choice'; enteredBy?: 'host' | 'performer';
+    /** counter: the performer taps once per attempt instead of typing the result. */
+    input?: 'counter';
     unit: string; min: number; max: number; step?: number; target?: number; timeout?: number;
   };
 };
@@ -59,6 +61,15 @@ export const tasks: Record<string, Task> = {
   height: { id: 'height', title: 'Kjenn kompisen', description: 'Svar ærlig i appen, og ikke si svaret høyt. De andre gjetter.',
     question: 'Hvor høy er du?', guessQuestion: 'Hvor høy er {name}?',
     kind: 'challenge', answer: { method: 'manual', enteredBy: 'performer', unit: 'cm', min: 150, max: 250, step: 1 } },
+  steps: { id: 'steps', title: 'Skritteller', description: 'Sjekk helse-appen og svar i appen, uten å si det høyt. De andre gjetter.',
+    question: 'Hvor mange skritt har du gått i dag?', guessQuestion: 'Hvor mange skritt har {name} gått i dag?',
+    kind: 'challenge', answer: { method: 'manual', enteredBy: 'performer', unit: 'skritt', min: 0, max: 30000, step: 100 } },
+  snap_streak: { id: 'snap_streak', title: 'Snap-streak', description: 'Sjekk Snapchat og svar i appen, uten å si det høyt. De andre gjetter.',
+    question: 'Hvor lang er den største snap-streaken din?', guessQuestion: 'Hvor lang er den største snap-streaken til {name}?',
+    kind: 'challenge', answer: { method: 'manual', enteredBy: 'performer', unit: 'dager', min: 0, max: 5000, step: 1 } },
+  cup_flip: { id: 'cup_flip', title: 'Hvor mange?', description: 'Sett en kopp på bordkanten og flipp den så den lander andre veien opp. De andre gjetter hvor mange forsøk du trenger.',
+    guessQuestion: 'Hvor mange forsøk bruker {name} på å flippe koppen?',
+    kind: 'challenge', answer: { method: 'manual', enteredBy: 'performer', input: 'counter', unit: 'forsøk', min: 1, max: 200, step: 1 } },
   rps: { id: 'rps', title: 'Stein, saks, papir', description: 'Alle får en tilfeldig motstander. Vinneren får 3 poeng, taperen tar 3 slurker.',
     kind: 'everyone', sips: 'losers', answer: { method: 'rps', unit: '', min: 0, max: 0 } },
   wyr_naked: wouldYouRather('wyr_naked', ['Hatt en kjæreste som gråter hver gang du kler av deg', 'Hatt en kjæreste som ler hver gang du kler av deg']),

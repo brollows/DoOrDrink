@@ -1,6 +1,6 @@
 # DoOrDrink
 
-A Norwegian multiplayer PWA built with React, Vite, TypeScript, React Router, Supabase and Netlify. Tasks: **Bånn i bøtta**, **Kjenn kompisen**, **Perfekte 10**, **Stein, saks, papir** and five **Ville du helst** questions.
+A Norwegian multiplayer PWA built with React, Vite, TypeScript, React Router, Supabase and Netlify. Tasks: the challenges **Bånn i bøtta**, **Kjenn kompisen**, **Skritteller**, **Snap-streak** and **Hvor mange?** (cup flip), and for everyone **Perfekte 10**, **Stein, saks, papir** and five **Ville du helst** questions.
 
 ## Run locally
 
@@ -20,7 +20,7 @@ The local project is connected to `https://mavqjmobgreyoyuqvquv.supabase.co`. Bo
 
 1. Create a dedicated Supabase project.
 2. Enable **Authentication → Sign In / Providers → Anonymous Sign-Ins**. Players never need to provide an email or password.
-3. Run `supabase/migrations/001_game.sql` in the SQL Editor, then `002_cleanup.sql`, `003_host_plays.sql`, `004_sips_before_leaderboard.sql`, `005_more_tasks.sql` and `006_would_you_rather_points.sql`. Run each migration once, in order; do not rerun earlier ones on an existing database.
+3. Run `supabase/migrations/001_game.sql` in the SQL Editor, then `002_cleanup.sql` and `003`–`007` in numeric order. Run each migration once, in order; do not rerun earlier ones on an existing database.
 4. Copy `.env.example` to `.env`, and enter the project's URL and public publishable/anon key. Never put a `service_role` or secret key in a `VITE_` variable.
 5. Restart the development server.
 6. Verify that `public.session_updates` is enabled in the `supabase_realtime` publication. The first migration adds it when the publication exists.
@@ -75,6 +75,7 @@ The service worker caches the app shell, not Supabase data. Online multiplayer r
 - `supabase/migrations/004_sips_before_leaderboard.sql`: round order reveal → sips → leaderboard.
 - `supabase/migrations/005_more_tasks.sql`: random task order, challenge/everyone kinds, rock paper scissors, would you rather and the height challenge.
 - `supabase/migrations/006_would_you_rather_points.sql`: 3 points for the would-you-rather majority.
+- `supabase/migrations/007_more_challenges.sql`: Skritteller, Snap-streak and the cup-flip attempt counter (`answer.input: 'counter'`).
 
 Private tables cannot be read or written by client roles. The exposed functions check `auth.uid()`, membership, phase and host/performer permissions. Hidden answers never enter a spectator's pre-reveal snapshot or Realtime event. Realtime sends only a session ID and version. The database session lock and allocation uniqueness constraint make simultaneous allocations safe. Host next/back requests include their expected phase to prevent duplicate requests skipping steps.
 
