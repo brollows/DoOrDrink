@@ -1,6 +1,6 @@
 import { Bot } from 'lucide-react';
 import { Avatar } from '../../components/Avatar';
-import { formatAnswer, formatTime, hands, type Hand, type Response } from '../../model';
+import { formatAnswer, formatTime, hands, participants, sameWord, sipCount, type Hand, type Response } from '../../model';
 import { Ranking } from '../Ranking';
 import { HandIcon } from '../TaskIcon';
 import type { PhaseProps } from './types';
@@ -75,6 +75,55 @@ function VoteResults({ state }: { state: State }) {
   </>;
 }
 
+/** Topp 5: the most written words, who wrote them, and which of your words made the list. */
+function WordResults({ state }: { state: State }) {
+  const { game, round, myResponse } = state;
+  const top = round.topWords ?? [];
+  const name = (id: string) => game.players.find(p => p.id === id)?.name ?? '';
+  const myWords = myResponse?.words ?? [];
+  return <>
+    {top.length ? (
+      <ol className="top-words">
+        {top.map((entry, index) => (
+          <li key={entry.word} className={entry.players.includes(game.meId) ? 'is-me' : ''}>
+            <span className="rank podium">{index + 1}</span>
+            <div><strong>{entry.word}</strong><span>{entry.players.map(name).join(', ')}</span></div>
+            <span className="points">{entry.count}<small>svar</small></span>
+          </li>
+        ))}
+      </ol>
+    ) : <p className="task-description">Ingen ord ble skrevet av mer enn én. Ingen poeng denne gangen.</p>}
+    {myResponse && (
+      <p className="my-words">
+        Dine ord: {myWords.length ? myWords.map(word => <span key={word} className={top.some(t => sameWord(word, t.word) && t.players.includes(game.meId)) ? 'hit' : ''}>{word}</span>) : 'ingen'}
+        {' '}· +{myResponse.points} poeng
+      </p>
+    )}
+  </>;
+}
+
+/** Nest mest: every number from the top, with the loser and the winner marked. */
+function NumberResults({ state }: { state: State }) {
+  const { game, round, task } = state;
+  const rows = participants(game).map(player => ({ player, response: round.responses.find(q => q.playerId === player.id) }))
+    .sort((a, b) => Number(b.response?.choice ?? -1) - Number(a.response?.choice ?? -1));
+  return (
+    <div className="ranking" role="region" aria-label="Alle tallene" tabIndex={0}>
+      {rows.map(({ player, response }) => (
+        <div className={`ranking-row ${player.id === game.meId ? 'is-me' : ''} ${response?.drinks ? 'too-high' : ''}`} key={player.id}>
+          <span className={`rank ${response?.rank === 1 ? 'podium' : ''}`}>{response?.drinks ? '✕' : response?.rank ?? '–'}</span>
+          <Avatar player={player} small />
+          <div className="ranking-name">
+            <strong>{player.name}{player.id === game.meId && <span> (deg)</span>}</strong>
+            <span>{response?.drinks ? `Høyest – tar ${sipCount(task)} slurker` : response?.rank === 1 ? 'Nest høyest – vinner!' : response?.choice == null ? 'Valgte ikke' : ''}</span>
+          </div>
+          <span className="points">{response?.choice ?? '–'}<small>+{response?.points ?? 0} poeng</small></span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** Step 4: the actual result and this round's points. */
 export function RevealPhase({ state }: PhaseProps) {
   const { game, round, task, performer } = state;
@@ -85,6 +134,16 @@ export function RevealPhase({ state }: PhaseProps) {
     <h1>Kampene.</h1>
     <p className="task-description">Vinnerne får 3 poeng. Taperne tar 3 slurker.</p>
     <MatchResults state={state} />
+  </>;
+  if (method === 'words') return <>
+    <span className="eyebrow">TEMA: {task.question?.toUpperCase()}</span>
+    <h1>Topp 5.</h1>
+    <WordResults state={state} />
+  </>;
+  if (method === 'highest') return <>
+    <span className="eyebrow">ØYEBLIKKET ER HER</span>
+    <h1>Nest mest.</h1>
+    <NumberResults state={state} />
   </>;
   if (method === 'choice') return <>
     <span className="eyebrow">ØYEBLIKKET ER HER</span>

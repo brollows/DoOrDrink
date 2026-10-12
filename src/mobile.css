@@ -83,8 +83,8 @@
   .missing-players .avatar { display: none; }
   .response-status .missing-players + p { margin-top: 4px; font-size: .75rem; }
   .stopwatch { padding-top: 18px; }
-  .phase-performing:has(.stopwatch, .timer-done, .attempt-counter) > h1,
-  .phase-performing:has(.stopwatch, .timer-done, .attempt-counter) > .eyebrow { display: none; }
+  .phase-performing:has(.stopwatch, .timer-done, .attempt-counter, .word-entry) > h1,
+  .phase-performing:has(.stopwatch, .timer-done, .attempt-counter, .word-entry) > .eyebrow { display: none; }
   .timer-value { font-size: 4.2rem; margin: 16px 0 20px; }
   .timer-button { min-height: 64px; width: 100%; min-width: 0; }
   .stopwatch > p { margin-top: 14px; line-height: 1.5; }
@@ -125,6 +125,13 @@
   .option-button { min-height: 64px; padding: 12px; gap: 11px; font-size: .9rem; }
   .tie-note { margin-top: 10px; }
   .attempt-counter { width: 100%; margin: 0 auto; }
+  .word-entry { width: 100%; margin: 0 auto; }
+  .word-entry .timer-value { margin: 0 0 4px; font-size: 3rem; }
+  .word-entry form { gap: 8px; margin-top: 10px; }
+  .word-entry input { min-height: 46px; padding: 10px 14px; }
+  .top-words { margin-top: 12px; gap: 6px; }
+  .top-words li { padding: 9px 11px; gap: 9px; }
+  .my-words { margin-top: 10px; }
   .attempt-counter .timer-value { margin: 6px 0 14px; }
   .attempt-counter > p { margin-top: 8px; line-height: 1.4; }
   .match-list { margin-top: 12px; gap: 8px; }

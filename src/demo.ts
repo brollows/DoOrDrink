@@ -1,9 +1,11 @@
 import {
   beats,
+  normalizeWord,
   participants,
   rankingPoints,
   roundPhases,
   tasks,
+  topWords,
   type Game,
   type Hand,
   type Player,
@@ -13,6 +15,8 @@ import {
 /** Local single-device game. Mirrors the server rules in supabase/migrations. */
 type DemoGame = Game & {
   taskOrder: string[];
+  /** When the current round entered the performing step (Topp 5 countdown). */
+  performingStartedAt?: number | null;
   usedTasks: string[];
   declined: string[];
 };
@@ -69,6 +73,12 @@ export function demoState(meId?: string): Game {
   const game = structuredClone(read());
   if (meId && game.players.some((p) => p.id === meId)) game.meId = meId;
   const round = game.round;
+  const { timeout, method } = round ? tasks[round.taskId].answer : { timeout: 0, method: "" };
+  if (round && method === "words" && game.performingStartedAt)
+    round.secondsLeft = Math.max(
+      0,
+      timeout! - (Date.now() - game.performingStartedAt) / 1000,
+    );
   if (round && !["reveal", "leaderboard", "sips"].includes(round.phase)) {
     const challenge = tasks[round.taskId].kind === "challenge";
     if (game.meId !== round.performerId) round.actual = null;
@@ -81,6 +91,7 @@ export function demoState(meId?: string): Game {
         actual: mine && challenge ? q.actual : null,
         startedAt: mine ? q.startedAt : null,
         choice: mine ? q.choice : null,
+        words: mine ? q.words : null,
         botChoice: null,
         drinks: false,
         points: 0,
@@ -112,6 +123,7 @@ function nextRound(game: DemoGame) {
   const challenge = task.kind === "challenge";
   game.usedTasks.push(taskId);
   game.declined = [];
+  game.performingStartedAt = null;
   game.status = "playing";
   const responses: Response[] = participants(game).map((p) => ({
     playerId: p.id,
@@ -127,6 +139,7 @@ function nextRound(game: DemoGame) {
     botChoice: null,
     tieChoice: null,
     drinks: false,
+    words: null,
   }));
   if (task.answer.method === "rps") {
     // Random pairs; with an odd number the last player meets the machine.
@@ -177,6 +190,21 @@ function awardChoice(responses: Response[]) {
   }
 }
 
+function awardHighest(responses: Response[]) {
+  // The highest number drinks; the rest are ranked from the top, so the second highest wins.
+  const numbers = responses.filter((q) => q.choice !== null).map((q) => Number(q.choice));
+  const top = Math.max(...numbers);
+  for (const q of responses) q.drinks = q.choice !== null && Number(q.choice) === top;
+  const ranked = responses
+    .filter((q) => q.choice !== null && !q.drinks)
+    .sort((a, b) => Number(b.choice) - Number(a.choice));
+  const count = responses.filter((q) => !q.drinks).length;
+  ranked.forEach((q) => {
+    q.rank = ranked.findIndex((other) => other.choice === q.choice) + 1;
+    q.points = rankingPoints(count, q.rank);
+  });
+}
+
 function awardScores(game: DemoGame) {
   const r = game.round!;
   const task = tasks[r.taskId];
@@ -224,7 +252,12 @@ function award(game: DemoGame) {
   const task = tasks[r.taskId];
   if (task.answer.method === "rps") awardRps(r.responses);
   else if (task.answer.method === "choice") awardChoice(r.responses);
-  else awardScores(game);
+  else if (task.answer.method === "highest") awardHighest(r.responses);
+  else if (task.answer.method === "words") {
+    r.topWords = topWords(r.responses);
+    for (const q of r.responses)
+      q.points = 2 * r.topWords.filter((t) => t.players.includes(q.playerId)).length;
+  } else awardScores(game);
   // Only allocate-tasks have sip givers.
   r.winners =
     task.sips === "losers"
@@ -241,11 +274,18 @@ function award(game: DemoGame) {
 }
 
 function choose(r: NonNullable<Game["round"]>, q: Response, value: unknown) {
-  const method = tasks[r.taskId].answer.method;
-  if (r.phase !== "performing" || r.awarded || !["rps", "choice"].includes(method))
+  const { method, min, max } = tasks[r.taskId].answer;
+  if (r.phase !== "performing" || r.awarded || !["rps", "choice", "highest"].includes(method))
     throw new Error("Du kan ikke velge nå.");
   if (q.choice !== null) throw new Error("Du har allerede valgt.");
   const picked = String(value);
+  if (method === "highest") {
+    if (!/^\d{1,3}$/.test(picked) || Number(picked) < min || Number(picked) > max)
+      throw new Error("Ugyldig tall.");
+    q.choice = String(Number(picked));
+    q.finished = true;
+    return;
+  }
   if (method === "choice") {
     if (!["0", "1"].includes(picked)) throw new Error("Ugyldig valg.");
     q.choice = picked;
@@ -295,7 +335,7 @@ export function demoAction(
     const task = tasks[r.taskId];
     const challenge = task.kind === "challenge";
     const q = r.responses.find((q) => q.playerId === meId);
-    if (["guess", "timer_start", "timer_stop", "choose"].includes(action) && !q)
+    if (["guess", "timer_start", "timer_stop", "choose", "words"].includes(action) && !q)
       throw new Error("Du deltar ikke i denne runden.");
     if (action === "accept" || action === "decline") {
       if (
@@ -372,6 +412,16 @@ export function demoAction(
       performer.finished = true;
     } else if (action === "choose") {
       choose(r, q!, payload.value);
+    } else if (action === "words") {
+      const { method, timeout, words = 3 } = task.answer;
+      if (r.phase !== "performing" || r.awarded || method !== "words")
+        throw new Error("Du kan ikke sende ord nå.");
+      if (!game.performingStartedAt || Date.now() > game.performingStartedAt + (timeout! + 3) * 1000)
+        throw new Error("Tiden er ute.");
+      if (!Array.isArray(payload.value) || payload.value.length > words)
+        throw new Error(`Du kan skrive inntil ${words} ord.`);
+      q!.words = [...new Set(payload.value.map((w) => normalizeWord(String(w))).filter(Boolean))];
+      q!.finished = q!.words.length > 0;
     } else if (action === "allocate") {
       const target = String(payload.recipientId);
       if (
@@ -402,6 +452,7 @@ export function demoAction(
         nextRound(game);
       } else {
         const phase = phases[index + 1];
+        if (phase === "performing") game.performingStartedAt ??= Date.now();
         if (phase === "reveal") award(game);
         r.phase = phase;
       }

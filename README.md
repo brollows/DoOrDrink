@@ -1,6 +1,6 @@
 # DoOrDrink
 
-A Norwegian multiplayer PWA built with React, Vite, TypeScript, React Router, Supabase and Netlify. Tasks: the challenges **Bånn i bøtta**, **Kjenn kompisen**, **Skritteller**, **Snap-streak** and **Hvor mange?** (cup flip), and for everyone **Perfekte 10**, **Stein, saks, papir** and five **Ville du helst** questions.
+A Norwegian multiplayer PWA built with React, Vite, TypeScript, React Router, Supabase and Netlify. Tasks: the challenges **Bånn i bøtta**, **Kjenn kompisen**, **Skritteller**, **Snap-streak** and **Hvor mange?** (cup flip), and for everyone **Perfekte 10**, **Stein, saks, papir**, **Nest mest**, five **Topp 5** themes and five **Ville du helst** questions.
 
 ## Run locally
 
@@ -20,7 +20,7 @@ The local project is connected to `https://mavqjmobgreyoyuqvquv.supabase.co`. Bo
 
 1. Create a dedicated Supabase project.
 2. Enable **Authentication → Sign In / Providers → Anonymous Sign-Ins**. Players never need to provide an email or password.
-3. Run `supabase/migrations/001_game.sql` in the SQL Editor, then `002_cleanup.sql` and `003`–`007` in numeric order. Run each migration once, in order; do not rerun earlier ones on an existing database.
+3. Run `supabase/migrations/001_game.sql` in the SQL Editor, then `002_cleanup.sql` and `003`–`008` in numeric order. Run each migration once, in order; do not rerun earlier ones on an existing database.
 4. Copy `.env.example` to `.env`, and enter the project's URL and public publishable/anon key. Never put a `service_role` or secret key in a `VITE_` variable.
 5. Restart the development server.
 6. Verify that `public.session_updates` is enabled in the `supabase_realtime` publication. The first migration adds it when the publication exists.
@@ -53,7 +53,9 @@ The service worker caches the app shell, not Supabase data. Online multiplayer r
 - The game ends when no task can run anymore, or when the host ends it. Everyone-tasks never mark players as having completed their challenge.
 - **Stein, saks, papir**: random pairs; with an odd number one player meets the machine. A tie means both choose again. The winner gets 3 points; the loser, or a player who did not choose, drinks 3 sips automatically.
 - **Ville du helst**: everyone picks one of two options. The majority gets 3 points; the minority and players who did not answer drink 3 sips automatically. An exact tie gives no points and spares everyone who answered.
-- In these two tasks nobody hands out sips; losers get the red drink screen directly.
+- **Topp 5**: everyone has 60 seconds (server-timed) to write up to 3 single words for a theme. Words are compared without case, spaces or punctuation, and one typo (two for 7+ letters) counts as the same word. The five most written words with at least two writers are shown with who wrote them; each listed word gives 2 points. The top three hand out sips.
+- **Nest mest**: everyone picks 0–100. The highest number (all tied on it) drinks 5 sips automatically; the rest get position scoring from the top, so the second highest wins.
+- In Stein, saks, papir, Ville du helst and Nest mest nobody hands out sips; losers get the red drink screen directly.
 - Ranking uses absolute distance to the answer. Individual answers are clamped to the task's guessing bounds for scoring and reveal. The beer task displays 60 if the result exceeds 60.
 - Position scores start at 1 at the bottom. The increase is 1 up to third place, 2 between third and second, and 3 between second and first. Nine guessers: `1,2,3,4,5,6,7,9,12`. Five guessers: `1,2,3,5,8`. The latter follows the written rule rather than the conflicting example ending in 7. With one guesser the award is 1; with two it is `1,4`.
 - Ties use competition ranking: two first places both receive first-place points; the next player is third. Two last places receive the better occupied position's points. The score schedule is fixed by the round's participant count; missing responses get 0 rather than changing the available point scale.
@@ -76,6 +78,7 @@ The service worker caches the app shell, not Supabase data. Online multiplayer r
 - `supabase/migrations/005_more_tasks.sql`: random task order, challenge/everyone kinds, rock paper scissors, would you rather and the height challenge.
 - `supabase/migrations/006_would_you_rather_points.sql`: 3 points for the would-you-rather majority.
 - `supabase/migrations/007_more_challenges.sql`: Skritteller, Snap-streak and the cup-flip attempt counter (`answer.input: 'counter'`).
+- `supabase/migrations/008_top_five_and_second_highest.sql`: Topp 5 (word matching with typo tolerance, server countdown) and Nest mest.
 
 Private tables cannot be read or written by client roles. The exposed functions check `auth.uid()`, membership, phase and host/performer permissions. Hidden answers never enter a spectator's pre-reveal snapshot or Realtime event. Realtime sends only a session ID and version. The database session lock and allocation uniqueness constraint make simultaneous allocations safe. Host next/back requests include their expected phase to prevent duplicate requests skipping steps.
 

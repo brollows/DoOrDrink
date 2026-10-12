@@ -24,6 +24,8 @@ function Rules() {
       <li>De tre med flest poeng i runden får dele ut 3 slurker hver. De er immune. Førstemann til mølla velger mottaker.</li>
       <li>På «Perfekte 10» starter og stopper alle selv. Resultatet skjules til fasiten. 20 sekunder eller ingen fullføring gir 0 poeng.</li>
       <li>I «Stein, saks, papir» får alle en tilfeldig motstander, eller maskinen ved oddetall. Uavgjort betyr nytt valg. Vinneren får 3 poeng, og taperen tar 3 slurker.</li>
+      <li>I «Topp 5» har alle 60 sekunder på å skrive 3 enkeltord om temaet. De fem ordene flest skrev vises, og du får 2 poeng for hvert av dine ord på lista. Små skrivefeil teller som samme ord.</li>
+      <li>I «Nest mest» velger alle et tall fra 0 til 100. Høyest tar 5 slurker, og nest høyest vinner.</li>
       <li>I «Ville du helst» velger alle ett av to alternativer. Flertallet får 3 poeng, og de i mindretall tar 3 slurker. Ved helt likt skjer ingenting.</li>
       <li>Verten styrer stegene og kan gå videre før alle er klare. Manglende svar gir 0 poeng.</li>
     </ol>

@@ -6,7 +6,7 @@ import { rankingPoints } from '../src/model';
 
 const db = new PGlite();
 const users = Array.from({ length: 10 }, (_, i) => `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`);
-type State = { id: string; code: string; meId: string; hostId: string; hostPlays: boolean; status: string; players: { id: string; score: number; completed: boolean }[]; round: { id: string; taskId: string; phase: string; performerId: string; actual: number | null; transferred: boolean; responses: { playerId: string; submitted: boolean; finished: boolean; choice: string | null; opponentId: string | null; tieChoice: string | null; drinks: boolean; guess: number | null; actual: number | null; points: number; rank: number | null }[]; winners: string[]; allocations: { giverId: string; recipientId: string }[] } };
+type State = { id: string; code: string; meId: string; hostId: string; hostPlays: boolean; status: string; players: { id: string; score: number; completed: boolean }[]; round: { id: string; taskId: string; phase: string; secondsLeft: number | null; topWords: { word: string; count: number; players: string[] }[] | null; performerId: string; actual: number | null; transferred: boolean; responses: { playerId: string; submitted: boolean; finished: boolean; choice: string | null; words: string[] | null; opponentId: string | null; tieChoice: string | null; drinks: boolean; guess: number | null; actual: number | null; points: number; rank: number | null }[]; winners: string[]; allocations: { giverId: string; recipientId: string }[] } };
 async function identity(index: number) { await db.query("select set_config('test.user_id',$1,false)", [users[index]]); }
 async function rpc(name: string, args: unknown[]) {
   const result = await db.query<{ value: State }>(`select public.${name}(${args.map((_, i) => `$${i + 1}`).join(',')}) as value`, args);
@@ -33,7 +33,7 @@ before(async () => {
   await db.exec(`create role anon; create role authenticated; create schema auth;
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.user_id',true),'')::uuid$$;`);
   // 002 schedules cleanup with pg_cron, which PGlite does not provide.
-  for (const migration of ['001_game.sql', '003_host_plays.sql', '004_sips_before_leaderboard.sql', '005_more_tasks.sql', '006_would_you_rather_points.sql', '007_more_challenges.sql'])
+  for (const migration of ['001_game.sql', '003_host_plays.sql', '004_sips_before_leaderboard.sql', '005_more_tasks.sql', '006_would_you_rather_points.sql', '007_more_challenges.sql', '008_top_five_and_second_highest.sql'])
     await db.exec(await readFile(new URL(`../supabase/migrations/${migration}`, import.meta.url), 'utf8'));
 });
 after(async () => { await db.close(); });
@@ -438,4 +438,52 @@ test('steps, snap streak and cup flip are challenges with their own guess ranges
     assert.deepEqual([rank(second.id), rank(first.id)], [1, 2], 'closest guess wins');
     assert.equal(game.round.responses.find(q => q.playerId === performer)!.points, 5);
   }
+});
+
+test('Topp 5: words ignore case, spaces and typos, need two writers, and give 2 points per listed word', async () => {
+  let game = await create(5, ['top5_sex']);
+  game = await act(game, 'start'); game = await act(game, 'next');
+  assert.ok(game.round.secondsLeft! > 55 && game.round.secondsLeft! <= 60);
+  const [p0, p1, p2, p3, p4] = game.players.map(p => p.id);
+  const answers: [string, string[]][] = [
+    [p0, ['Sex', 'Doggy', 'Anal']], [p1, ['sEx', 'doggy ', 'kondom']], [p2, ['sexc', 'Anal!', 'kyss']],
+    [p3, ['SEX', 'kyss', 'pikk']], [p4, ['pikk', 'kondom', 'gruppe sex']]];
+  for (const [id, words] of answers) { await asPlayer(game, id); game = await act(game, 'words', { value: words }); }
+  await assert.rejects(() => act(game, 'words', { value: ['a', 'b', 'c', 'd'] }), /inntil 3/);
+  assert.deepEqual(game.round.responses.find(q => q.playerId === p4)!.words!.sort(), ['gruppesex', 'kondom', 'pikk']);
+  assert.equal(game.round.responses.find(q => q.playerId === p0)!.words, null, 'other players cannot see your words');
+  await identity(0); game = await act(game, 'next');
+  assert.deepEqual(game.round.topWords!.map(t => [t.word, t.count]), [['sex', 4], ['anal', 2], ['doggy', 2], ['kondom', 2], ['kyss', 2]]);
+  assert.deepEqual([...game.round.topWords![0].players].sort(), [p0, p1, p2, p3].sort(), 'sexc counts as sex');
+  const points = (id: string) => game.round.responses.find(q => q.playerId === id)!.points;
+  assert.deepEqual([points(p0), points(p1), points(p2), points(p3), points(p4)], [6, 6, 6, 4, 2]);
+});
+
+test('Topp 5: answers are rejected after the countdown', async () => {
+  let game = await create(3, ['top5_food']);
+  game = await act(game, 'start'); game = await act(game, 'next');
+  await db.query("update game_private.rounds set started_at=clock_timestamp()-interval '64 seconds' where id=$1", [game.round.id]);
+  await assert.rejects(() => act(game, 'words', { value: ['pizza'] }), /Tiden er ute/);
+  game = await rpc('game_state', [game.id]);
+  assert.equal(game.round.secondsLeft, 0);
+});
+
+test('Nest mest: the highest number drinks 5, the second highest wins with position scoring', async () => {
+  let game = await create(5, ['second_highest']);
+  game = await act(game, 'start'); game = await act(game, 'next');
+  const [p0, p1, p2, p3, p4] = game.players.map(p => p.id);
+  await asPlayer(game, p0);
+  await assert.rejects(() => act(game, 'choose', { value: '101' }), /Ugyldig tall/);
+  await assert.rejects(() => act(game, 'choose', { value: 'abc' }), /Ugyldig tall/);
+  for (const [id, value] of [[p0, '98'], [p1, '93'], [p2, '80'], [p3, '98']] as const) { await asPlayer(game, id); game = await act(game, 'choose', { value }); }
+  assert.equal(game.round.responses.find(q => q.playerId === p0)!.choice, null, 'numbers are hidden until the reveal');
+  await identity(0); game = await act(game, 'next');
+  const result = (id: string) => { const q = game.round.responses.find(q => q.playerId === id)!; return [q.choice, q.points, q.drinks]; };
+  assert.deepEqual(result(p0), ['98', 0, true]);
+  assert.deepEqual(result(p3), ['98', 0, true], 'everyone tied on the highest number drinks');
+  assert.deepEqual(result(p1), ['93', 6, false], 'second highest wins');
+  assert.deepEqual(result(p2), ['80', 3, false]);
+  assert.deepEqual(result(p4), [null, 0, false], 'no answer gives no points');
+  game = await act(game, 'next');
+  assert.deepEqual(game.round.winners, [], 'nobody hands out sips');
 });

@@ -22,7 +22,9 @@ Every new or changed task must follow one of these two scoring systems:
 - **Closest-wins tasks** (guess or hit a value, e.g. Bånn i bøtta, Kjenn kompisen, Perfekte 10): use the same
   position scoring as the challenge tasks. Closest gets the most, ties share the best position, no answer gives 0
   (`rankingPoints` in `src/model.ts`, `award_round` in the SQL). A challenge performer who completes gets 5 points,
-  or 10 if the task was passed on to them.
+  or 10 if the task was passed on to them. Nest mest uses this too, ranking from the top after the highest number
+  is removed.
+- **Deliberate exception:** Topp 5 gives **2 points per word** a player has on the top-five list (decided by the owner).
 
 Implement scoring on the server (a new `supabase/migrations/` file) and mirror it in `src/demo.ts`, with tests in
 `tests/game.test.ts`.

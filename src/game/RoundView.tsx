@@ -59,7 +59,8 @@ export function RoundView({ state, busy, offline, act, onConfirm }: Props) {
     <Stepper state={state} />
     <main className="round-main">
       <section className={`round-card phase-${round.phase}`}>
-        <PhaseView state={state} busy={busy} offline={offline} act={act} />
+        {/* Keyed by player so local input state never carries over when the demo switches player. */}
+        <PhaseView key={state.me.id} state={state} busy={busy} offline={offline} act={act} />
       </section>
       <RoundSidebar state={state} />
     </main>

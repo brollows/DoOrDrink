@@ -1,4 +1,4 @@
-import { CupSoda, Flame, Footprints, Grab, Hand, Ruler, Scissors, Split, Timer, Wine, type LucideProps } from 'lucide-react';
+import { ChevronsUp, CupSoda, Flame, Footprints, Grab, Hand, ListOrdered, Ruler, Scissors, Split, Timer, Wine, type LucideProps } from 'lucide-react';
 import type { Hand as HandName, Task } from '../model';
 
 const taskIcons: Record<string, typeof Ruler> = { steps: Footprints, snap_streak: Flame, cup_flip: CupSoda };
@@ -6,6 +6,8 @@ const taskIcons: Record<string, typeof Ruler> = { steps: Footprints, snap_streak
 export function TaskIcon({ task, ...props }: { task: Task } & LucideProps) {
   const Icon = taskIcons[task.id];
   if (Icon) return <Icon {...props} />;
+  if (task.answer.method === 'words') return <ListOrdered {...props} />;
+  if (task.answer.method === 'highest') return <ChevronsUp {...props} />;
   if (task.answer.method === 'rps') return <Scissors {...props} />;
   if (task.answer.method === 'choice') return <Split {...props} />;
   if (task.answer.method === 'manual') return <Ruler {...props} />;
