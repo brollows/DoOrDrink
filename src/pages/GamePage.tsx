@@ -49,7 +49,7 @@ export default function GamePage() {
       <ErrorMessage message={error} />
 
       {game.status === 'lobby' && <Lobby game={game} isHost={isHost} busy={busy} offline={offline} act={act} onError={setError} />}
-      {game.status === 'finished' && <FinishedView game={game} onLeave={() => { leaveDevice(); navigate('/'); }} />}
+      {game.status === 'finished' && <FinishedView game={game} onLeave={() => { leaveDevice(); navigate(game.test ? '/test' : '/'); }} />}
       {roundState && <RoundView state={roundState} busy={busy} offline={offline} act={act} refresh={refresh} onConfirm={setConfirm} />}
 
       {confirm && <ConfirmDialog kind={confirm} phase={game.round?.phase} busy={busy}

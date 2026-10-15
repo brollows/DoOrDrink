@@ -45,7 +45,11 @@ const save = (game: DemoGame) => {
   localStorage.setItem(key, JSON.stringify(game));
 };
 
-export function createDemo(name: string): Game {
+/**
+ * `tasks` plays only those tasks, in that order, instead of the whole game in random order.
+ * `test` marks a game started from the hidden test page (/test).
+ */
+export function createDemo(name: string, options: { tasks?: string[]; test?: boolean } = {}): Game {
   const players: Player[] = [
     name || "Erik",
     "Elias",
@@ -54,8 +58,9 @@ export function createDemo(name: string): Game {
     "Nora",
     "Emma",
   ].map((name) => ({ id: uuid(), name, score: 0, completed: false }));
-  const taskOrder = shuffledTasks();
+  const taskOrder = options.tasks ?? shuffledTasks();
   const game: DemoGame = {
+    test: options.test || undefined,
     id: "demo",
     code: "123456",
     hostId: players[0].id,

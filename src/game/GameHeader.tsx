@@ -1,4 +1,5 @@
-import { Dices } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ChevronLeft, Dices } from 'lucide-react';
 import { Avatar } from '../components/Avatar';
 import { Brand } from '../components/Brand';
 import type { Game, Player } from '../model';
@@ -17,7 +18,9 @@ export function GameHeader({ game, me, isHost }: { game: Game; me: Player; isHos
 export function DemoBar({ game, onSwitchPlayer }: { game: Game; onSwitchPlayer: (playerId: string) => void }) {
   return (
     <div className="demo-bar">
-      <Dices size={16} />
+      {game.test
+        ? <Link className="demo-back" to="/test" aria-label="Til testlisten"><ChevronLeft size={16} /> Test</Link>
+        : <Dices size={16} />}
       <span>Lokalt prøvespill</span>
       <label htmlFor="demo-player">Se som:</label>
       <select id="demo-player" value={game.meId} onChange={e => onSwitchPlayer(e.target.value)}>

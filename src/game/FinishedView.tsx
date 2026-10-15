@@ -15,7 +15,7 @@ export function FinishedView({ game, onLeave }: { game: Game; onLeave: () => voi
       <span className="eyebrow">KVELDENS RESULTAT</span>
       <h1>{winner?.name} {shared ? 'deler seieren!' : 'vinner!'}</h1>
       <Ranking game={game} total />
-      <button className="button secondary wide" onClick={onLeave}>Til forsiden</button>
+      <button className="button secondary wide" onClick={onLeave}>{game.test ? 'Til testlisten' : 'Til forsiden'}</button>
     </main>
   );
 }

@@ -25,7 +25,8 @@ export function AssignmentPhase({ state, busy, offline, act }: PhaseProps) {
     {performer && (
       <div className="performer-card">
         <Avatar player={performer} />
-        <div><strong>{performer.name}</strong><span>{round.transferred ? '+10 poeng for å ta over' : '+5 poeng for å fullføre'}</span></div>
+        <div><strong>{performer.name}</strong><span>{task.answer.method === 'wavelength' ? 'Fasiten: 1 poeng per spiller som svarer likt på alle 5'
+          : round.transferred ? '+10 poeng for å ta over' : '+5 poeng for å fullføre'}</span></div>
       </div>
     )}
 

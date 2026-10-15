@@ -46,6 +46,8 @@ export type Game = {
   hostPlays: boolean;
   meId: string; status: 'lobby' | 'playing' | 'finished';
   expiresAt: string; taskCount: number; players: Player[]; round: Round | null;
+  /** Demo only: started from the hidden test page (/test). */
+  test?: boolean;
 };
 export type Task = {
   id: string; title: string; description: string;

@@ -43,6 +43,13 @@ export async function createGame(name: string, demo = false) {
   remember(game);
   return game;
 }
+/** Test page: a local game with every task, or only the chosen tasks, which then starts right away. */
+export async function createTestGame(tasks?: string[]) {
+  let game = createDemo('Erik', { tasks, test: true });
+  if (tasks) game = demoAction('start', {}, game.meId);
+  remember(game);
+  return game;
+}
 export async function joinGame(code: string, name: string) {
   const game = await rpc('join_game', { p_code: code, p_name: name });
   remember(game);
