@@ -28,6 +28,7 @@ type Props = {
   busy: boolean;
   offline: boolean;
   act: Act;
+  refresh: () => Promise<void>;
   onConfirm: (kind: ConfirmKind) => void;
 };
 
@@ -47,7 +48,7 @@ function Stepper({ state }: { state: RoundState }) {
 }
 
 /** One round of the game: progress, the current phase, sidebar and controls. */
-export function RoundView({ state, busy, offline, act, onConfirm }: Props) {
+export function RoundView({ state, busy, offline, act, refresh, onConfirm }: Props) {
   const { game, isHost, round, task } = state;
   const PhaseView = phaseViews[round.phase];
 
@@ -60,7 +61,7 @@ export function RoundView({ state, busy, offline, act, onConfirm }: Props) {
     <main className="round-main">
       <section className={`round-card phase-${round.phase}`}>
         {/* Keyed by player so local input state never carries over when the demo switches player. */}
-        <PhaseView key={state.me.id} state={state} busy={busy} offline={offline} act={act} />
+        <PhaseView key={state.me.id} state={state} busy={busy} offline={offline} act={act} refresh={refresh} />
       </section>
       <RoundSidebar state={state} />
     </main>

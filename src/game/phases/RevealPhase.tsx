@@ -1,6 +1,6 @@
 import { Bot } from 'lucide-react';
 import { Avatar } from '../../components/Avatar';
-import { formatAnswer, formatTime, hands, participants, sameWord, sipCount, type Hand, type Response } from '../../model';
+import { formatAnswer, formatTime, hands, participants, sameWord, sipCount, wavelengthStatus, wlStreak, type Hand, type Response } from '../../model';
 import { Ranking } from '../Ranking';
 import { HandIcon } from '../TaskIcon';
 import type { PhaseProps } from './types';
@@ -124,6 +124,33 @@ function NumberResults({ state }: { state: State }) {
   );
 }
 
+/** Samme bølgelengde: the performer's answers to the questions that were played, and how many held on. */
+function WavelengthResults({ state }: { state: State }) {
+  const { round, task, performer } = state;
+  const { total, step, shown, fasit, guessers } = wavelengthStatus(round);
+  const played = step + (shown ? 1 : 0);
+  const allTheWay = guessers.filter(q => wlStreak(q.answers, fasit, played) === played).length;
+  return <>
+    <p className="task-description">
+      {played < total ? `Runden stoppet etter spørsmål ${played}. ${performer?.name} får 0 poeng.`
+        : allTheWay ? `${allTheWay} av ${guessers.length} svarte likt på alle ${total}. ${performer?.name} får ${allTheWay} poeng.`
+        : `Ingen svarte likt på alle ${total}. ${performer?.name} får 0 poeng.`}
+    </p>
+    <ol className="wl-recap">
+      {(round.wlQuestions ?? []).slice(0, played).map((index, i) => {
+        const question = task.questions?.[index];
+        const answer = fasit[i];
+        return (
+          <li key={index}>
+            <span>{question?.question}</span>
+            <strong>{answer == null ? 'Ikke svart' : question?.options[Number(answer)]}</strong>
+          </li>
+        );
+      })}
+    </ol>
+  </>;
+}
+
 /** Step 4: the actual result and this round's points. */
 export function RevealPhase({ state }: PhaseProps) {
   const { game, round, task, performer } = state;
@@ -144,6 +171,22 @@ export function RevealPhase({ state }: PhaseProps) {
     <span className="eyebrow">ØYEBLIKKET ER HER</span>
     <h1>Nest mest.</h1>
     <NumberResults state={state} />
+  </>;
+  if (method === 'mime') return <>
+    <span className="eyebrow">{performer?.name.toUpperCase()} MIMET</span>
+    <h1>Fasiten.</h1>
+    <div className="reveal-value">
+      <span>Ordet var</span>
+      <strong className="mime-answer">{round.word ?? '–'}</strong>
+      <p className="muted">{round.word ? 'Raskest får mest poeng. De som ikke gjettet, får 0.' : 'Ingen ord ble valgt. Ingen poeng denne runden.'}</p>
+    </div>
+    <Ranking game={game} />
+  </>;
+  if (method === 'wavelength') return <>
+    <span className="eyebrow">{performer?.name.toUpperCase()} VAR FASITEN</span>
+    <h1>Samme bølgelengde.</h1>
+    <WavelengthResults state={state} />
+    <Ranking game={game} />
   </>;
   if (method === 'choice') return <>
     <span className="eyebrow">ØYEBLIKKET ER HER</span>

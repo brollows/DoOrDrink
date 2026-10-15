@@ -6,4 +6,6 @@ export type PhaseProps = {
   busy: boolean;
   offline: boolean;
   act: Act;
+  /** Fetches the latest state, e.g. when a server-timed hint is due. */
+  refresh?: () => Promise<void>;
 };

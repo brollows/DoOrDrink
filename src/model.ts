@@ -14,6 +14,11 @@ export type Response = {
   drinks: boolean;
   /** Topp 5: the player's words, normalized. Hidden from others until the reveal. */
   words?: string[] | null;
+  /**
+   * Samme bølgelengde: '0'/'1' per question. Others see '?' for an answer to the current question
+   * until its result is shown.
+   */
+  answers?: (string | null)[] | null;
 };
 export type TopWord = { word: string; count: number; players: string[] };
 export type Round = {
@@ -23,6 +28,15 @@ export type Round = {
   secondsLeft?: number | null;
   /** Topp 5: the most written words after the reveal. */
   topWords?: TopWord[] | null;
+  /** Mim det: the word, for the performer and after the reveal. */
+  word?: string | null;
+  /** Mim det: hints, given with 60 and 30 seconds left. */
+  wordLength?: number | null;
+  firstLetter?: string | null;
+  /** Samme bølgelengde: indexes into task.questions, the current question (0-based) and whether its result is shown. */
+  wlQuestions?: number[] | null;
+  wlStep?: number | null;
+  wlShown?: boolean | null;
   responses: Response[]; winners: string[];
   allocations: { giverId: string; recipientId: string }[];
 };
@@ -37,6 +51,8 @@ export type Task = {
   id: string; title: string; description: string;
   /** challenge: one player performs and the others guess, once per player. everyone: all players take part. */
   kind: 'challenge' | 'everyone';
+  /** How many times the task appears in a game (default 1). */
+  repeat?: number;
   /** allocate (default): the round's top three hand out sips. losers: losers drink automatically. */
   sips?: 'allocate' | 'losers';
   /** How many sips losers drink (default 3). */
@@ -47,8 +63,12 @@ export type Task = {
   guessQuestion?: string;
   /** The two alternatives of a would-you-rather task. */
   options?: [string, string];
+  /** Samme bølgelengde: the question pool; each round uses answer.questions of them. */
+  questions?: WavelengthQuestion[];
   answer: {
-    method: 'stopwatch' | 'manual' | 'rps' | 'choice' | 'words' | 'highest'; enteredBy?: 'host' | 'performer';
+    method: 'stopwatch' | 'manual' | 'rps' | 'choice' | 'words' | 'highest' | 'mime' | 'wavelength';
+    /** Samme bølgelengde: questions per round. */
+    questions?: number; enteredBy?: 'host' | 'performer';
     /** Topp 5: how many words each player may write. */
     words?: number;
     /** counter: the performer taps once per attempt instead of typing the result. */
@@ -56,6 +76,31 @@ export type Task = {
     unit: string; min: number; max: number; step?: number; target?: number; timeout?: number;
   };
 };
+
+export type WavelengthQuestion = { question: string; options: [string, string] };
+
+const wavelengthQuestions: WavelengthQuestion[] = [
+  ['Hva er verst dagen derpå?', 'Hodepine', 'Kvalme'],
+  ['Hva er mest attraktivt?', 'Humor', 'Selvtillit'],
+  ['Hva er verst på byen?', 'Bli avvist', 'Bli kastet ut'],
+  ['Hvilken superkraft ville du valgt?', 'Usynlighet', 'Tankelesing'],
+  ['Hva er mest irriterende?', 'Folk som avbryter', 'Folk som skryter'],
+  ['Hva ville du helst vunnet?', '1 million kroner', 'Gratis ferier resten av livet'],
+  ['Hva er mest flaut?', 'Falle foran mange folk', 'Bli tatt i å lyve'],
+  ['Hva er mest irriterende i en vennegjeng?', 'Han som alltid er sen', 'Han som aldri betaler'],
+  ['Hva er viktigst hos en partner?', 'Samme humor', 'Samme interesser'],
+  ['Hva er best etter en fyllekule?', "McDonald's", 'Kebab'],
+  ['Hva er verst på en fest?', 'En som blir for full', 'En som starter drama'],
+  ['Hva er best på ferie?', 'Syden', 'Storby'],
+  ['Hva ville du helst opplevd?', 'Reise 100 år tilbake', 'Reise 100 år frem'],
+  ['Hva er verst på en første date?', 'Dårlig ånde', 'Dårlig humor'],
+  ['Hva er best?', 'Pepsi Max', 'Coca-Cola'],
+  ['Hva ville du helst hatt?', 'Ubegrenset penger', 'Ubegrenset fritid'],
+  ['Hva ville du helst vært?', 'Verdens beste idrettsutøver', 'Verdens beste musiker'],
+  ['Hva er verst i et forhold?', 'Utroskap', 'Konstant sjalusi'],
+  ['Hva ville du helst sluppet resten av livet?', 'Å vaske klær', 'Å lage mat'],
+  ['Hva er best på en lørdagskveld?', 'Hjemmefest', 'Bytur'],
+].map(([question, a, b]) => ({ question, options: [a, b] }));
 
 const wouldYouRather = (id: string, options: [string, string]): Task => ({
   id, title: 'Ville du helst …', description: 'Alle velger. Flertallet får 3 poeng, mindretallet tar 3 slurker.',
@@ -72,7 +117,7 @@ const topFive = (id: string, title: string, theme: string): Task => ({
 export const tasks: Record<string, Task> = {
   beer: { id: 'beer', title: 'Bånn i bøtta', description: 'Drikk en øl så fort du kan. De andre gjetter hvor mange sekunder du bruker.',
     guessQuestion: 'Hvor mange sekunder bruker {name} på å drikke ølen?',
-    kind: 'challenge', answer: { method: 'stopwatch', unit: 'sekunder', min: 0, max: 60 } },
+    kind: 'challenge', repeat: 2, answer: { method: 'stopwatch', unit: 'sekunder', min: 0, max: 60 } },
   ten_seconds: { id: 'ten_seconds', title: 'Perfekte 10', description: 'Start din egen timer. Stopp så nær 10 sekunder som mulig. Tiden forsvinner når du stopper.',
     kind: 'everyone', answer: { method: 'stopwatch', unit: 'sekunder', min: 0, max: 20, target: 10, timeout: 20 } },
   height: { id: 'height', title: 'Kjenn kompisen', description: 'Svar ærlig i appen, og ikke si svaret høyt. De andre gjetter.',
@@ -87,6 +132,12 @@ export const tasks: Record<string, Task> = {
   cup_flip: { id: 'cup_flip', title: 'Hvor mange?', description: 'Sett en kopp på bordkanten og flipp den så den lander andre veien opp. De andre gjetter hvor mange forsøk du trenger.',
     guessQuestion: 'Hvor mange forsøk bruker {name} på å flippe koppen?',
     kind: 'challenge', answer: { method: 'manual', enteredBy: 'performer', input: 'counter', unit: 'forsøk', min: 1, max: 200, step: 1 } },
+  mime: { id: 'mime', title: 'Mim det!', description: 'Velg ett ord og mim det uten å si noe. De andre har 120 sekunder på å gjette. Raskest får mest poeng.',
+    guessQuestion: 'Hva mimer {name}? Svaret er ett ord.',
+    kind: 'challenge', repeat: 2, answer: { method: 'mime', timeout: 120, unit: 'sekunder', min: 0, max: 120 } },
+  wavelength: { id: 'wavelength', title: 'Samme bølgelengde',
+    description: 'Svar likt som den som er trukket ut, på 5 spørsmål. Svarer du ulikt, er du ute. 1 poeng for hvert like svar.',
+    kind: 'challenge', repeat: 2, questions: wavelengthQuestions, answer: { method: 'wavelength', questions: 5, unit: '', min: 0, max: 0 } },
   rps: { id: 'rps', title: 'Stein, saks, papir', description: 'Alle får en tilfeldig motstander. Vinneren får 3 poeng, taperen tar 3 slurker.',
     kind: 'everyone', sips: 'losers', answer: { method: 'rps', unit: '', min: 0, max: 0 } },
   top5_sex: topFive('top5_sex', 'Sex', 'Sex'),
@@ -102,6 +153,24 @@ export const tasks: Record<string, Task> = {
   wyr_wake_up: wouldYouRather('wyr_wake_up', ['Våknet ved siden av eksen din', 'Våknet ved siden av sjefen din']),
   wyr_beer: wouldYouRather('wyr_beer', ['Bare drukket lunken øl resten av livet', 'Aldri drukket alkohol igjen']),
 };
+
+/** Suggested words for Mim det, one is offered from each level. */
+export const mimeWords = {
+  Lett: ['Katt', 'Kanin', 'Slange', 'Løve', 'Kenguru', 'Hund', 'Sel', 'Bjørn', 'Fisk', 'Pingvin', 'Sykle', 'Skiskyting', 'Støvsuge',
+    'Baby', 'Brannmann', 'Frisør', 'Lærer', 'Politi', 'Konge', 'Banan', 'Kake', 'Is', 'Sitron', 'Suppe'],
+  Middels: ['Forkjølet', 'Forelsket', 'Sulten', 'Kvalm', 'Edderkopp', 'Brennmanet', 'Maur', 'Mygg', 'Snegle', 'Sykepleier', 'Tyv',
+    'Ballettdanser', 'Kunstner', 'Journalist', 'Bestemor', 'Fjellklatrer', 'Baker', 'Skuespiller', 'Drømme', 'Gravemaskin', 'Buss',
+    'Motorsykkel', 'Heisekran', 'Telt', 'Hengekøye', 'Fiskestang', 'Redningsvest', 'Matpakke', 'Termos', 'Blomst', 'Vulkan', 'Snøball',
+    'Regnvær', 'Storm'],
+  Vanskelig: ['Tannfeen', 'Supermann', 'Sirkusklovn', 'Julaften', 'Nyttårsaften', 'Bursdag', '17.mai', 'Sommerferie', 'Julenissen',
+    'Snømann', 'Ridder', 'Sjørøver', 'Spøkelse', 'TV', 'Monopol', 'Kortstokk', 'Yatzy'],
+};
+/** One suggestion per level, the same on every reload of a round. */
+export function mimeSuggestions(seed: string) {
+  let hash = 0;
+  for (const char of seed) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return Object.entries(mimeWords).map(([level, words], index) => ({ level, word: words[(hash + index * 7919) % words.length] }));
+}
 
 export type Hand = 'rock' | 'paper' | 'scissors';
 export const hands: Record<Hand, string> = { rock: 'Stein', paper: 'Papir', scissors: 'Saks' };
@@ -129,10 +198,9 @@ function editDistance(a: string, b: string) {
   }
   return previous[b.length];
 }
-/** Equal, or a typo: one edit for words of 3+ letters, two for 7+ letters. */
+/** Equal, or one typo when both words have 7+ letters (same_word on the server). Short words must match exactly. */
 export function sameWord(a: string, b: string) {
-  const shortest = Math.min(a.length, b.length);
-  return a === b || (shortest >= 3 && editDistance(a, b) <= (shortest >= 7 ? 2 : 1));
+  return a === b || (Math.min(a.length, b.length) >= 7 && editDistance(a, b) <= 1);
 }
 /** The five most written word groups (at least two writers). Mirrors award_round on the server. */
 export function topWords(responses: Response[]): TopWord[] {
@@ -148,6 +216,41 @@ export function topWords(responses: Response[]): TopWord[] {
   return groups.map((g, index) => ({ ...g, index })).filter(g => g.players.size >= 2)
     .sort((a, b) => b.players.size - a.players.size || a.index - b.index).slice(0, 5)
     .map(g => ({ word: g.word, count: g.players.size, players: [...g.players] }));
+}
+/** Mim det: the same rule as Topp 5 (mime_match on the server). Both words normalized. */
+export function mimeMatch(guess: string, word: string) {
+  return sameWord(guess, word);
+}
+/** Samme bølgelengde: how many of the first `steps` questions were answered like the performer, in a row (wl_streak). */
+export function wlStreak(mine: (string | null)[] | null | undefined, fasit: (string | null)[] | null | undefined, steps: number) {
+  for (let i = 0; i < steps; i++) if (mine?.[i] == null || fasit?.[i] == null || mine[i] !== fasit[i]) return i;
+  return steps;
+}
+/** Samme bølgelengde: where the round stands, derived from the round and the answers. */
+export function wavelengthStatus(round: Round) {
+  const task = roundTask(round);
+  const total = task.answer.questions ?? 5;
+  const step = round.wlStep ?? 0;
+  const shown = Boolean(round.wlShown);
+  const fasit = round.responses.find(q => q.playerId === round.performerId)?.answers ?? [];
+  const guessers = round.responses.filter(q => q.playerId !== round.performerId);
+  // Still in the game at the current question: every earlier answer matched.
+  const alive = guessers.filter(q => wlStreak(q.answers, fasit, step) === step);
+  const survivors = shown ? alive.filter(q => q.answers?.[step] === fasit[step]) : alive;
+  const done = shown && (step === total - 1 || survivors.length === 0);
+  const index = round.wlQuestions?.[step];
+  return { total, step, shown, done, fasit, guessers, alive, survivors,
+    question: index == null ? undefined : task.questions?.[index] };
+}
+/** Every task `repeat` times in a random order, without the same task twice in a row when possible (shuffled_tasks). */
+export function shuffledTasks(random = Math.random) {
+  const ids = Object.values(tasks).flatMap(task => Array<string>(Math.max(1, task.repeat ?? 1)).fill(task.id));
+  let order = ids;
+  for (let attempt = 0; attempt < 50; attempt++) {
+    order = ids.map(id => ({ id, order: random() })).sort((a, b) => a.order - b.order).map(({ id }) => id);
+    if (order.every((id, i) => i === 0 || id !== order[i - 1])) break;
+  }
+  return order;
 }
 export function guessQuestion(task: Task, name: string) {
   return task.guessQuestion?.replace('{name}', name) || `Oppgi ditt tips i ${task.answer.unit}.`;
@@ -173,7 +276,9 @@ export function formatAnswer(value: number, task: Task) {
   return (task.answer.step ?? 0.1) >= 1 ? Math.round(value).toLocaleString('nb-NO') : formatTime(value);
 }
 export function roundPhases(taskId: string, task?: Task): Phase[] {
-  return (task || tasks[taskId])?.kind === 'challenge'
+  const definition = task || tasks[taskId];
+  // Mim det and Samme bølgelengde have no separate guessing step: the others play along in the performing step.
+  return definition?.kind === 'challenge' && !['mime', 'wavelength'].includes(definition.answer.method)
     ? ['assignment', 'guessing', 'performing', 'reveal', 'sips', 'leaderboard']
     : ['assignment', 'performing', 'reveal', 'sips', 'leaderboard'];
 }

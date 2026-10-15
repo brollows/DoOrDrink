@@ -24,12 +24,14 @@ function Rules() {
       <li>De tre med flest poeng i runden får dele ut 3 slurker hver. De er immune. Førstemann til mølla velger mottaker.</li>
       <li>På «Perfekte 10» starter og stopper alle selv. Resultatet skjules til fasiten. 20 sekunder eller ingen fullføring gir 0 poeng.</li>
       <li>I «Stein, saks, papir» får alle en tilfeldig motstander, eller maskinen ved oddetall. Uavgjort betyr nytt valg. Vinneren får 3 poeng, og taperen tar 3 slurker.</li>
-      <li>I «Topp 5» har alle 60 sekunder på å skrive 3 enkeltord om temaet. De fem ordene flest skrev vises, og du får 2 poeng for hvert av dine ord på lista. Små skrivefeil teller som samme ord.</li>
+      <li>I «Topp 5» har alle 60 sekunder på å skrive 3 enkeltord om temaet. De fem ordene flest skrev vises, og du får 2 poeng for hvert av dine ord på lista. Store og små bokstaver spiller ingen rolle, og for ord på 7 bokstaver eller mer teller én skrivefeil som samme ord.</li>
+      <li>I «Mim det!» velger den som har oppgaven ett ord og mimer det. De andre har 120 sekunder på å gjette, så mange ganger de vil. Med 60 sekunder igjen vises antall bokstaver, og med 30 sekunder igjen første bokstav. Raskest får mest poeng, og den som mimer får 5 poeng (10 hvis oppgaven ble sendt videre).</li>
+      <li>I «Samme bølgelengde» trekkes én spiller ut som fasit. Alle svarer på 5 spørsmål med to alternativer. Svarer du ulikt enn fasiten, er du ute. Du får 1 poeng for hvert likt svar, og fasiten får 1 poeng for hver spiller som svarte likt på alle 5.</li>
       <li>I «Nest mest» velger alle et tall fra 0 til 100. Høyest tar 5 slurker, og nest høyest vinner.</li>
       <li>I «Ville du helst» velger alle ett av to alternativer. Flertallet får 3 poeng, og de i mindretall tar 3 slurker. Ved helt likt skjer ingenting.</li>
       <li>Verten styrer stegene og kan gå videre før alle er klare. Manglende svar gir 0 poeng.</li>
     </ol>
-    <p className="muted">Hver spiller tar maks én utfordring. Når alle har tatt sin, hoppes resten av utfordringene over, mens oppgavene for alle fortsetter. Spillet slutter når oppgavene er brukt opp eller verten avslutter. Spilldata slettes innen 24 timer.</p>
+    <p className="muted">Hver spiller tar maks én utfordring. Når alle har tatt sin, hoppes resten av utfordringene over, mens oppgavene for alle fortsetter. «Bånn i bøtta», «Mim det!» og «Samme bølgelengde» kan komme to ganger, med en ny spiller hver gang. Spillet slutter når oppgavene er brukt opp eller verten avslutter. Spilldata slettes innen 24 timer.</p>
     <p className="muted">Ved lik plassering rundt topp tre får de som ble med først dele ut. Hvis alle tilgjengelige mottakere er valgt eller immune, kan verten gå videre.</p>
     <p className="muted">Poeng: sisteplass får 1. Opp til tredjeplass øker det med 1 per plass; andreplass får 2 mer enn tredjeplass og førsteplass får 3 mer enn andreplass. Ved fem som gjetter: 1–2–3–5–8.</p>
   </>;

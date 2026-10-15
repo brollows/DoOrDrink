@@ -1,4 +1,4 @@
-import { losersDrink, participants, roundTask, type Game, type Player, type Response, type Round, type Task } from '../model';
+import { losersDrink, participants, roundTask, wavelengthStatus, type Game, type Player, type Response, type Round, type Task } from '../model';
 
 /** Everything the round screen needs, derived once from the current game state. */
 export type RoundState = {
@@ -43,7 +43,9 @@ export function getRoundState(game: Game): RoundState | null {
 
   const expectedGuesses = round.responses.filter(q => task.kind !== 'challenge' || q.playerId !== round.performerId);
   const submittedGuesses = expectedGuesses.filter(q => q.submitted);
-  const performingResponses = round.responses.filter(q => !round.performerId || q.playerId === round.performerId);
+  // Mim det waits for the guessers; other challenges for the performer.
+  const mime = task.answer.method === 'mime';
+  const performingResponses = round.responses.filter(q => !round.performerId || (mime ? q.playerId !== round.performerId : q.playerId === round.performerId));
 
   const winners = round.winners.map(id => playerById(game, id));
   const recipients = participants(game).filter(p => !round.winners.includes(p.id) && !round.allocations.some(a => a.recipientId === p.id));
@@ -51,11 +53,21 @@ export function getRoundState(game: Game): RoundState | null {
   let ready = true, readyCount = 0, readyTotal = 0;
   if (round.phase === 'assignment') { ready = round.accepted; readyCount = +ready; readyTotal = 1; }
   if (round.phase === 'guessing') { readyCount = submittedGuesses.length; readyTotal = expectedGuesses.length; ready = readyCount === readyTotal; }
-  if (round.phase === 'performing') { readyCount = performingResponses.filter(q => q.finished).length; readyTotal = performingResponses.length; ready = readyCount === readyTotal; }
+  // Samme bølgelengde: who has answered the current question; ready once the last result is shown.
+  const wavelength = round.phase === 'performing' && task.answer.method === 'wavelength' ? wavelengthStatus(round) : null;
+  const wlRequired = wavelength ? round.responses.filter(q => q.playerId === round.performerId || wavelength.alive.includes(q)) : [];
+  if (round.phase === 'performing' && wavelength) {
+    readyCount = wlRequired.filter(q => q.answers?.[wavelength.step] != null).length; readyTotal = wlRequired.length;
+    ready = wavelength.done;
+  } else if (round.phase === 'performing') {
+    readyCount = performingResponses.filter(q => q.finished).length; readyTotal = performingResponses.length;
+    ready = readyCount === readyTotal || (mime && round.secondsLeft === 0);
+  }
   if (round.phase === 'sips') { readyCount = round.allocations.length; readyTotal = winners.length; ready = readyCount === readyTotal || !recipients.length; }
 
   const waitingOn = (round.phase === 'guessing'
     ? expectedGuesses.filter(q => !q.submitted)
+    : wavelength ? (wavelength.shown ? [] : wlRequired.filter(q => q.answers?.[wavelength.step] == null))
     : performingResponses.filter(q => !q.finished)
   ).map(q => playerById(game, q.playerId));
 

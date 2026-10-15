@@ -2,8 +2,11 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Check, Hourglass, RotateCcw, ShieldCheck } from 'lucide-react';
 import { Avatar } from '../../components/Avatar';
 import { hands, normalizeWord, sipCount, type Hand } from '../../model';
+import { Countdown, useCountdown } from '../Countdown';
 import { Stopwatch } from '../Stopwatch';
 import { HandIcon, TaskIcon } from '../TaskIcon';
+import { MimeView } from './MimeView';
+import { WavelengthView } from './WavelengthView';
 import type { PhaseProps } from './types';
 
 const handOrder: Hand[] = ['rock', 'paper', 'scissors'];
@@ -56,19 +59,6 @@ function AttemptCounter({ state, busy, offline, act }: PhaseProps) {
       <p className="muted">Ikke si antallet høyt. De andre ser det på fasiten.</p>
     </div>
   );
-}
-
-/** Seconds left, counted down locally from the server's value so every phone agrees. */
-function useCountdown(secondsLeft: number | null | undefined) {
-  const [deadline, setDeadline] = useState<number | null>(null);
-  const [, setTick] = useState(0);
-  useEffect(() => { if (secondsLeft != null) setDeadline(current => current ?? Date.now() + secondsLeft * 1000); }, [secondsLeft]);
-  useEffect(() => { const interval = window.setInterval(() => setTick(tick => tick + 1), 250); return () => window.clearInterval(interval); }, []);
-  return deadline === null ? null : Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-}
-
-function Countdown({ seconds }: { seconds: number | null }) {
-  return <div className={`timer-value countdown ${seconds !== null && seconds <= 10 ? 'urgent' : ''}`} role="timer">{seconds ?? '–'}<span>sekunder igjen</span></div>;
 }
 
 /** Topp 5: write single words for the theme before the time runs out. Unsent words are sent automatically at zero. */
@@ -219,7 +209,9 @@ export function PerformingPhase(props: PhaseProps) {
   return <>
     <span className="eyebrow">{task.kind === 'everyone' ? 'NÅ GJELDER DET' : `${performer?.name.toUpperCase()} SIN TUR`}</span>
     <h1>{task.title}</h1>
-    {method === 'choice' ? <OptionPicker {...props} />
+    {method === 'mime' ? <MimeView {...props} />
+      : method === 'wavelength' ? <WavelengthView {...props} />
+      : method === 'choice' ? <OptionPicker {...props} />
       : method === 'words' && myResponse ? <WordEntry {...props} />
       : method === 'highest' && myResponse ? <NumberPicker {...props} />
       : method === 'rps' && myResponse ? <HandPicker {...props} />

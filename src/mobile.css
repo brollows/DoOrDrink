@@ -83,8 +83,8 @@
   .missing-players .avatar { display: none; }
   .response-status .missing-players + p { margin-top: 4px; font-size: .75rem; }
   .stopwatch { padding-top: 18px; }
-  .phase-performing:has(.stopwatch, .timer-done, .attempt-counter, .word-entry) > h1,
-  .phase-performing:has(.stopwatch, .timer-done, .attempt-counter, .word-entry) > .eyebrow { display: none; }
+  .phase-performing:has(.stopwatch, .timer-done, .attempt-counter, .word-entry, .mime, .wavelength) > h1,
+  .phase-performing:has(.stopwatch, .timer-done, .attempt-counter, .word-entry, .mime, .wavelength) > .eyebrow { display: none; }
   .timer-value { font-size: 4.2rem; margin: 16px 0 20px; }
   .timer-button { min-height: 64px; width: 100%; min-width: 0; }
   .stopwatch > p { margin-top: 14px; line-height: 1.5; }
@@ -129,6 +129,21 @@
   .word-entry .timer-value { margin: 0 0 4px; font-size: 3rem; }
   .word-entry form { gap: 8px; margin-top: 10px; }
   .word-entry input { min-height: 46px; padding: 10px 14px; }
+  .mime { width: 100%; margin: 0 auto; }
+  .mime .timer-value { margin: 0 0 4px; font-size: 3rem; }
+  .mime-suggestions { gap: 8px; margin: 12px 0 14px; }
+  .mime-suggestions .option-button { min-height: 52px; }
+  .mime-form { gap: 8px; margin-top: 10px; }
+  .mime-form input { min-height: 46px; padding: 10px 14px; }
+  .mime-hint { margin: 0 0 8px; }
+  .letter-tiles { gap: 4px; }
+  .letter-tiles span { width: 24px; height: 32px; font-size: 1rem; }
+  .mime-answer { font-size: 2.6rem !important; }
+  .wl-performer { margin: 0 auto 10px; }
+  .wl-question { font-size: 1.25rem; margin: 8px 0 0; }
+  .wavelength .option-buttons { margin-top: 12px; }
+  .wl-results { margin-top: 10px; }
+  .wl-recap { margin-top: 8px; }
   .top-words { margin-top: 12px; gap: 6px; }
   .top-words li { padding: 9px 11px; gap: 9px; }
   .my-words { margin-top: 10px; }

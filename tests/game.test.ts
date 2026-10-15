@@ -2,11 +2,11 @@ import { test, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
-import { rankingPoints } from '../src/model';
+import { mimeMatch, mimeSuggestions, normalizeWord, rankingPoints, sameWord, shuffledTasks, tasks as taskDefinitions } from '../src/model';
 
 const db = new PGlite();
 const users = Array.from({ length: 10 }, (_, i) => `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`);
-type State = { id: string; code: string; meId: string; hostId: string; hostPlays: boolean; status: string; players: { id: string; score: number; completed: boolean }[]; round: { id: string; taskId: string; phase: string; secondsLeft: number | null; topWords: { word: string; count: number; players: string[] }[] | null; performerId: string; actual: number | null; transferred: boolean; responses: { playerId: string; submitted: boolean; finished: boolean; choice: string | null; words: string[] | null; opponentId: string | null; tieChoice: string | null; drinks: boolean; guess: number | null; actual: number | null; points: number; rank: number | null }[]; winners: string[]; allocations: { giverId: string; recipientId: string }[] } };
+type State = { id: string; code: string; meId: string; hostId: string; hostPlays: boolean; status: string; players: { id: string; score: number; completed: boolean }[]; round: { id: string; taskId: string; phase: string; secondsLeft: number | null; word: string | null; wordLength: number | null; firstLetter: string | null; wlQuestions: number[] | null; wlStep: number; wlShown: boolean; topWords: { word: string; count: number; players: string[] }[] | null; performerId: string; actual: number | null; transferred: boolean; responses: { playerId: string; submitted: boolean; finished: boolean; choice: string | null; words: string[] | null; answers: (string | null)[] | null; opponentId: string | null; tieChoice: string | null; drinks: boolean; guess: number | null; actual: number | null; points: number; rank: number | null }[]; winners: string[]; allocations: { giverId: string; recipientId: string }[] } };
 async function identity(index: number) { await db.query("select set_config('test.user_id',$1,false)", [users[index]]); }
 async function rpc(name: string, args: unknown[]) {
   const result = await db.query<{ value: State }>(`select public.${name}(${args.map((_, i) => `$${i + 1}`).join(',')}) as value`, args);
@@ -33,7 +33,7 @@ before(async () => {
   await db.exec(`create role anon; create role authenticated; create schema auth;
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.user_id',true),'')::uuid$$;`);
   // 002 schedules cleanup with pg_cron, which PGlite does not provide.
-  for (const migration of ['001_game.sql', '003_host_plays.sql', '004_sips_before_leaderboard.sql', '005_more_tasks.sql', '006_would_you_rather_points.sql', '007_more_challenges.sql', '008_top_five_and_second_highest.sql'])
+  for (const migration of ['001_game.sql', '003_host_plays.sql', '004_sips_before_leaderboard.sql', '005_more_tasks.sql', '006_would_you_rather_points.sql', '007_more_challenges.sql', '008_top_five_and_second_highest.sql', '009_mime.sql', '010_wavelength.sql', '011_stricter_typos.sql'])
     await db.exec(await readFile(new URL(`../supabase/migrations/${migration}`, import.meta.url), 'utf8'));
 });
 after(async () => { await db.close(); });
@@ -292,17 +292,39 @@ async function playChallenge(game: State, actual: number) {
   return game;
 }
 
-test('new games get every task in a random order', async () => {
+test('new games get every task in a random order, Bånn i bøtta and Mim det twice but never back to back', async () => {
   const orders = new Set<string>();
-  const tasks = await db.query<{ id: string }>('select id from game_private.tasks');
+  const tasks = await db.query<{ id: string; repeat: number | null }>("select id,(definition->>'repeat')::integer as repeat from game_private.tasks");
+  const expected = tasks.rows.flatMap(t => Array<string>(t.repeat ?? 1).fill(t.id)).sort();
+  assert.equal(expected.filter(id => id === 'beer').length, 2);
+  assert.equal(expected.filter(id => id === 'mime').length, 2);
   for (let i = 0; i < 8; i++) {
     await identity(i);
     const game = await rpc('create_game', ['Host']);
-    const result = await db.query<{ task_order: string[] }>('select task_order from game_private.sessions where id=$1', [game.id]);
-    assert.deepEqual([...result.rows[0].task_order].sort(), tasks.rows.map(t => t.id).sort());
-    orders.add(result.rows[0].task_order.join());
+    const order = (await db.query<{ task_order: string[] }>('select task_order from game_private.sessions where id=$1', [game.id])).rows[0].task_order;
+    assert.deepEqual([...order].sort(), expected);
+    assert.ok(order.every((id, index) => index === 0 || id !== order[index - 1]), 'no task twice in a row');
+    orders.add(order.join());
   }
   assert.ok(orders.size > 1);
+  // The demo builds its order the same way.
+  const demo = shuffledTasks();
+  assert.deepEqual([...demo].sort(), Object.values(taskDefinitions).flatMap(t => Array<string>(t.repeat ?? 1).fill(t.id)).sort());
+  assert.ok(demo.every((id, index) => index === 0 || id !== demo[index - 1]));
+});
+
+test('a task listed twice is played twice, by a new performer each time', async () => {
+  let game = await create(3, ['beer', 'rps', 'beer']);
+  game = await act(game, 'start');
+  assert.equal(game.round.taskId, 'beer');
+  const first = game.round.performerId;
+  game = await playChallenge(game, 12);
+  assert.equal(game.round.taskId, 'rps');
+  for (let i = 0; i < 5; i++) game = await act(game, 'next');
+  assert.equal(game.round.taskId, 'beer', 'the second copy comes after the everyone-task');
+  assert.notEqual(game.round.performerId, first);
+  game = await playChallenge(game, 15);
+  assert.equal(game.status, 'finished');
 });
 
 test('challenges stop once everyone has done one, while everyone-tasks still run', async () => {
@@ -440,7 +462,7 @@ test('steps, snap streak and cup flip are challenges with their own guess ranges
   }
 });
 
-test('Topp 5: words ignore case, spaces and typos, need two writers, and give 2 points per listed word', async () => {
+test('Topp 5: words ignore case, spaces and punctuation, need two writers, and give 2 points per listed word', async () => {
   let game = await create(5, ['top5_sex']);
   game = await act(game, 'start'); game = await act(game, 'next');
   assert.ok(game.round.secondsLeft! > 55 && game.round.secondsLeft! <= 60);
@@ -453,10 +475,21 @@ test('Topp 5: words ignore case, spaces and typos, need two writers, and give 2 
   assert.deepEqual(game.round.responses.find(q => q.playerId === p4)!.words!.sort(), ['gruppesex', 'kondom', 'pikk']);
   assert.equal(game.round.responses.find(q => q.playerId === p0)!.words, null, 'other players cannot see your words');
   await identity(0); game = await act(game, 'next');
-  assert.deepEqual(game.round.topWords!.map(t => [t.word, t.count]), [['sex', 4], ['anal', 2], ['doggy', 2], ['kondom', 2], ['kyss', 2]]);
-  assert.deepEqual([...game.round.topWords![0].players].sort(), [p0, p1, p2, p3].sort(), 'sexc counts as sex');
+  assert.deepEqual(game.round.topWords!.map(t => [t.word, t.count]), [['sex', 3], ['anal', 2], ['doggy', 2], ['kondom', 2], ['kyss', 2]]);
+  assert.deepEqual([...game.round.topWords![0].players].sort(), [p0, p1, p3].sort(), 'sexc is not sex: short words must match exactly');
   const points = (id: string) => game.round.responses.find(q => q.playerId === id)!.points;
-  assert.deepEqual([points(p0), points(p1), points(p2), points(p3), points(p4)], [6, 6, 6, 4, 2]);
+  assert.deepEqual([points(p0), points(p1), points(p2), points(p3), points(p4)], [6, 6, 4, 4, 2]);
+});
+
+test('typos: only words of 7+ letters may be one typo apart, the same on the server and in the demo', async () => {
+  const cases: [string, string, boolean][] = [
+    ['sol', 'sel', false], ['katt', 'kart', false], ['sexc', 'sex', false], ['kenguru', 'kengur', false],
+    ['kondomer', 'kondomr', true], ['ballettdanser', 'balettdanser', true], ['ballettdanser', 'balettdanse', false]];
+  for (const [a, b, expected] of cases) {
+    const result = await db.query<{ same: boolean; mime: boolean }>('select game_private.same_word($1,$2) as same,game_private.mime_match($1,$2) as mime', [a, b]);
+    assert.deepEqual([result.rows[0].same, result.rows[0].mime], [expected, expected], `${a} / ${b}`);
+    assert.equal(sameWord(a, b), expected, `${a} / ${b} in the demo`);
+  }
 });
 
 test('Topp 5: answers are rejected after the countdown', async () => {
@@ -486,4 +519,180 @@ test('Nest mest: the highest number drinks 5, the second highest wins with posit
   assert.deepEqual(result(p4), [null, 0, false], 'no answer gives no points');
   game = await act(game, 'next');
   assert.deepEqual(game.round.winners, [], 'nobody hands out sips');
+});
+
+test('Mim det: one secret word, server-timed hints, fastest correct guess wins, the performer scores for miming', async () => {
+  let game = await create(5, ['mime']);
+  game = await act(game, 'start');
+  const performer = game.round.performerId;
+  await asPlayer(game, performer); game = await act(game, 'accept');
+  await identity(0); game = await act(game, 'next');
+  assert.equal(game.round.phase, 'performing', 'no separate guessing step');
+  assert.equal(game.round.secondsLeft, null, 'the countdown waits for the performer');
+  const guessers = game.players.filter(p => p.id !== performer).map(p => p.id);
+  await asPlayer(game, guessers[0]);
+  await assert.rejects(() => act(game, 'mime_word', { value: 'Katt' }), /Bare den som mimer/);
+  await assert.rejects(() => act(game, 'mime_guess', { value: 'katt' }), /kan ikke gjette/);
+  await asPlayer(game, performer);
+  await assert.rejects(() => act(game, 'mime_start'), /Velg et ord/);
+  await assert.rejects(() => act(game, 'mime_word', { value: 'to ord' }), /ett ord/);
+  game = await act(game, 'mime_word', { value: 'Katt' });
+  game = await act(game, 'mime_word', { value: 'Ballettdanser' });
+  assert.equal(game.round.word, 'Ballettdanser', 'the performer may change the word before starting');
+  game = await act(game, 'mime_start');
+  assert.ok(game.round.secondsLeft! > 118 && game.round.secondsLeft! <= 120);
+  await assert.rejects(() => act(game, 'mime_word', { value: 'Katt' }), /allerede i gang/);
+
+  await asPlayer(game, guessers[0]);
+  game = await rpc('game_state', [game.id]);
+  assert.equal(game.round.word, null, 'guessers cannot see the word');
+  assert.equal(game.round.wordLength, null);
+  game = await act(game, 'mime_guess', { value: 'danser' });
+  assert.equal(game.round.responses.find(q => q.playerId === guessers[0])!.finished, false, 'a wrong guess can be followed by more guesses');
+  await assert.rejects(() => act(game, 'mime_guess', { value: 'ballett danser' }), /ett ord/);
+
+  const startedAgo = (seconds: number) =>
+    db.query("update game_private.rounds set started_at=clock_timestamp()-($1::numeric * interval '1 second') where id=$2", [seconds, game.round.id]);
+  await startedAgo(20);
+  game = await act(game, 'mime_guess', { value: 'BALLETTDANSER' });
+  const own = game.round.responses.find(q => q.playerId === guessers[0])!;
+  assert.equal(own.finished, true, 'guesses ignore case');
+  assert.ok(own.actual! >= 20 && own.actual! < 22);
+  await assert.rejects(() => act(game, 'mime_guess', { value: 'ballettdanser' }), /allerede gjettet/);
+
+  await startedAgo(65);
+  await asPlayer(game, guessers[1]);
+  game = await rpc('game_state', [game.id]);
+  assert.equal(game.round.wordLength, 13, 'the number of letters with 60 seconds left');
+  assert.equal(game.round.firstLetter, null);
+  game = await act(game, 'mime_guess', { value: 'balettdanser' });
+  assert.equal(game.round.responses.find(q => q.playerId === guessers[1])!.finished, true, 'one typo is allowed for long words');
+
+  await startedAgo(95);
+  await asPlayer(game, guessers[2]);
+  game = await rpc('game_state', [game.id]);
+  assert.equal(game.round.firstLetter, 'B', 'the first letter with 30 seconds left');
+  await startedAgo(125);
+  await assert.rejects(() => act(game, 'mime_guess', { value: 'ballettdanser' }), /Tiden er ute/);
+
+  await identity(0); game = await act(game, 'next');
+  assert.equal(game.round.word, 'Ballettdanser');
+  const points = (id: string) => game.round.responses.find(q => q.playerId === id)!.points;
+  assert.deepEqual(guessers.map(points), [rankingPoints(4, 1), rankingPoints(4, 2), 0, 0], 'position scoring among the guessers, no guess gives 0');
+  assert.equal(points(performer), 5);
+  assert.ok(game.players.find(p => p.id === performer)!.completed);
+});
+
+test('Mim det: short words must match exactly, a passed-on task gives 10, and not starting gives no points', async () => {
+  assert.equal(mimeMatch(normalizeWord('Sol'), normalizeWord('Sel')), false);
+  assert.equal(mimeMatch(normalizeWord('17. mai'), normalizeWord('17.mai')), true);
+  assert.deepEqual(mimeSuggestions('round-a'), mimeSuggestions('round-a'), 'suggestions stay the same for a round');
+  assert.deepEqual(mimeSuggestions('round-a').map(s => s.level), ['Lett', 'Middels', 'Vanskelig']);
+
+  let game = await create(3, ['mime']);
+  game = await act(game, 'start');
+  await asPlayer(game, game.round.performerId); game = await act(game, 'decline');
+  const next = game.round.performerId;
+  await asPlayer(game, next); game = await act(game, 'accept');
+  await identity(0); game = await act(game, 'next');
+  await asPlayer(game, next); game = await act(game, 'mime_word', { value: 'Sel' }); game = await act(game, 'mime_start');
+  const guesser = game.players.find(p => p.id !== next)!.id;
+  await asPlayer(game, guesser);
+  game = await act(game, 'mime_guess', { value: 'sol' });
+  assert.equal(game.round.responses.find(q => q.playerId === guesser)!.finished, false);
+  game = await act(game, 'mime_guess', { value: 'SEL' });
+  assert.equal(game.round.responses.find(q => q.playerId === guesser)!.finished, true);
+  await identity(0); game = await act(game, 'next');
+  assert.equal(game.round.responses.find(q => q.playerId === next)!.points, 10);
+
+  game = await create(3, ['mime']);
+  game = await act(game, 'start');
+  await asPlayer(game, game.round.performerId); game = await act(game, 'accept');
+  await identity(0); game = await act(game, 'next'); game = await act(game, 'next');
+  assert.ok(game.round.responses.every(q => q.points === 0));
+  assert.ok(game.players.every(p => !p.completed), 'not miming does not use up the challenge');
+});
+
+async function startWavelength(count: number, order = ['wavelength']) {
+  let game = await create(count, order);
+  game = await act(game, 'start');
+  const performer = game.round.performerId;
+  await asPlayer(game, performer); game = await act(game, 'accept');
+  await identity(0); game = await act(game, 'next');
+  return { game, performer, guessers: game.players.filter(p => p.id !== performer).map(p => p.id) };
+}
+async function answer(game: State, answers: [string, string][]) {
+  for (const [id, value] of answers) { await asPlayer(game, id); game = await act(game, 'wl_answer', { value }); }
+  await identity(0);
+  return rpc('game_state', [game.id]);
+}
+
+test('Samme bølgelengde: answer like the performer or be out; 1 point per matching answer, the performer 1 per survivor', async () => {
+  let { game, performer, guessers } = await startWavelength(5);
+  const [g0, g1, g2, g3] = guessers;
+  assert.equal(game.round.phase, 'performing', 'no separate guessing step');
+  assert.equal(game.round.wlQuestions!.length, 5);
+  assert.equal(new Set(game.round.wlQuestions).size, 5);
+  assert.equal(game.round.wlStep, 0);
+
+  // Question 1: g3 answers differently and is out. The result shows once everyone still in has answered.
+  game = await answer(game, [[g0, '0'], [performer, '0'], [g1, '0'], [g2, '0']]);
+  assert.equal(game.round.wlShown, false);
+  await asPlayer(game, g0);
+  game = await rpc('game_state', [game.id]);
+  assert.equal(game.round.responses.find(q => q.playerId === performer)!.answers![0], '?', 'the answer stays hidden until the result');
+  await assert.rejects(() => act(game, 'wl_answer', { value: '1' }), /allerede svart/);
+  game = await answer(game, [[g3, '1']]);
+  assert.equal(game.round.wlShown, true);
+  assert.equal(game.round.responses.find(q => q.playerId === performer)!.answers![0], '0');
+  await asPlayer(game, [performer, ...guessers].find(id => id !== game.hostId)!);
+  await assert.rejects(() => act(game, 'wl_next', { step: 0 }), /Bare verten/);
+  await identity(0); game = await act(game, 'wl_next', { step: 0 });
+  assert.deepEqual([game.round.wlStep, game.round.wlShown], [1, false]);
+  await asPlayer(game, g3);
+  await assert.rejects(() => act(game, 'wl_answer', { value: '0' }), /er ute/);
+
+  // Question 2: g2 does not answer; the host shows the result anyway, which puts g2 out.
+  game = await answer(game, [[performer, '1'], [g0, '1'], [g1, '1']]);
+  assert.equal(game.round.wlShown, false);
+  game = await act(game, 'wl_reveal', { step: 1 });
+  assert.equal(game.round.wlShown, true);
+  game = await act(game, 'wl_next', { step: 1 });
+  // Questions 3–5: g1 misses question 4, g0 matches everything.
+  game = await answer(game, [[performer, '0'], [g0, '0'], [g1, '0']]);
+  game = await act(game, 'wl_next', { step: 2 });
+  game = await answer(game, [[performer, '1'], [g0, '1'], [g1, '0']]);
+  game = await act(game, 'wl_next', { step: 3 });
+  game = await answer(game, [[performer, '1'], [g0, '1']]);
+  assert.equal(game.round.wlShown, true, 'only players still in are waited for');
+  await assert.rejects(() => act(game, 'wl_next', { step: 4 }), /ferdig/);
+
+  game = await act(game, 'next');
+  const points = (id: string) => game.round.responses.find(q => q.playerId === id)!.points;
+  assert.deepEqual([points(g0), points(g1), points(g2), points(g3)], [5, 3, 1, 0]);
+  assert.equal(points(performer), 1, 'one guesser matched all five');
+  assert.ok(game.players.find(p => p.id === performer)!.completed);
+});
+
+test('Samme bølgelengde: the round ends when nobody is left, and the performer then gets 0', async () => {
+  let { game, performer, guessers } = await startWavelength(3);
+  game = await answer(game, [[performer, '0'], [guessers[0], '0'], [guessers[1], '1']]);
+  game = await act(game, 'wl_next', { step: 0 });
+  game = await answer(game, [[performer, '0'], [guessers[0], '1']]);
+  await assert.rejects(() => act(game, 'wl_next', { step: 1 }), /ferdig/, 'nobody left after question 2');
+  game = await act(game, 'next');
+  const points = (id: string) => game.round.responses.find(q => q.playerId === id)!.points;
+  assert.deepEqual([points(guessers[0]), points(guessers[1]), points(performer)], [1, 0, 0]);
+  assert.ok(game.players.find(p => p.id === performer)!.completed);
+});
+
+test('Samme bølgelengde: the second round of a game gets five other questions', async () => {
+  let game = await create(3, ['wavelength', 'wavelength']);
+  game = await act(game, 'start');
+  const first = game.round.wlQuestions!;
+  game = await act(game, 'next');
+  assert.equal(game.round.taskId, 'wavelength');
+  const second = game.round.wlQuestions!;
+  assert.equal(second.length, 5);
+  assert.ok(second.every(i => !first.includes(i)), 'no question is used twice in one game');
 });

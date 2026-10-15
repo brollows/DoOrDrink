@@ -24,7 +24,11 @@ Every new or changed task must follow one of these two scoring systems:
   (`rankingPoints` in `src/model.ts`, `award_round` in the SQL). A challenge performer who completes gets 5 points,
   or 10 if the task was passed on to them. Nest mest uses this too, ranking from the top after the highest number
   is removed.
-- **Deliberate exception:** Topp 5 gives **2 points per word** a player has on the top-five list (decided by the owner).
+- **Deliberate exceptions** (decided by the owner):
+  - Topp 5 gives **2 points per word** a player has on the top-five list.
+  - Samme bølgelengde gives a guesser **1 point per answer** like the performer's (at most 5, out at the first
+    different answer). The performer gets **1 point per guesser who matched all 5**, 0 if everyone was out
+    earlier, and no 5/10 completion bonus.
 
 Implement scoring on the server (a new `supabase/migrations/` file) and mirror it in `src/demo.ts`, with tests in
 `tests/game.test.ts`.

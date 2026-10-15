@@ -1,6 +1,6 @@
 # DoOrDrink
 
-A Norwegian multiplayer PWA built with React, Vite, TypeScript, React Router, Supabase and Netlify. Tasks: the challenges **Bånn i bøtta**, **Kjenn kompisen**, **Skritteller**, **Snap-streak** and **Hvor mange?** (cup flip), and for everyone **Perfekte 10**, **Stein, saks, papir**, **Nest mest**, five **Topp 5** themes and five **Ville du helst** questions.
+A Norwegian multiplayer PWA built with React, Vite, TypeScript, React Router, Supabase and Netlify. Tasks: the challenges **Bånn i bøtta**, **Kjenn kompisen**, **Skritteller**, **Snap-streak** and **Hvor mange?** (cup flip), **Mim det!** and **Samme bølgelengde**, and for everyone **Perfekte 10**, **Stein, saks, papir**, **Nest mest**, five **Topp 5** themes and five **Ville du helst** questions.
 
 ## Run locally
 
@@ -47,13 +47,15 @@ The service worker caches the app shell, not Supabase data. Online multiplayer r
 
 - By default the host plays and participates in the random pool. In the lobby the host can turn off **Jeg spiller med** to only run the game, for example on a TV. A non-playing host gets no tasks, guesses, timers, points or sips, is left out of rankings, and sees answer status immediately. The setting is locked once the game starts, and at least two other players are then required. Names can be identical; all decisions use player IDs.
 - The host's lobby shows a QR code for `/join/<code>`, which opens **Bli med** with the code filled in.
-- Every game gets all tasks in a random order, and each task is used once. Tasks are either a **challenge** (one player performs, the others guess) or **everyone** (all players take part).
+- Every game gets all tasks in a random order. Each task is used once, except tasks with `repeat` (Bånn i bøtta, Mim det and Samme bølgelengde appear twice, never back to back). Tasks are either a **challenge** (one player performs, the others guess) or **everyone** (all players take part).
 - Successfully completing a challenge removes that player from the challenge pool. Declining keeps the player eligible for a later challenge, but prevents them from being redrawn within the same refusal chain. Once every player has completed a challenge, the remaining challenges are skipped while everyone-tasks still run.
 - Completing an individual task awards 5 points; completing a transferred task awards 10. Host advancement without a result awards no completion bonus and does not consume that player's individual turn.
 - The game ends when no task can run anymore, or when the host ends it. Everyone-tasks never mark players as having completed their challenge.
 - **Stein, saks, papir**: random pairs; with an odd number one player meets the machine. A tie means both choose again. The winner gets 3 points; the loser, or a player who did not choose, drinks 3 sips automatically.
 - **Ville du helst**: everyone picks one of two options. The majority gets 3 points; the minority and players who did not answer drink 3 sips automatically. An exact tie gives no points and spares everyone who answered.
-- **Topp 5**: everyone has 60 seconds (server-timed) to write up to 3 single words for a theme. Words are compared without case, spaces or punctuation, and one typo (two for 7+ letters) counts as the same word. The five most written words with at least two writers are shown with who wrote them; each listed word gives 2 points. The top three hand out sips.
+- **Topp 5**: everyone has 60 seconds (server-timed) to write up to 3 single words for a theme. Words are compared without case, spaces or punctuation, and words of 7+ letters may be one typo apart; shorter words must match exactly (`same_word`, also used by Mim det). The five most written words with at least two writers are shown with who wrote them; each listed word gives 2 points. The top three hand out sips.
+- **Mim det!** (challenge, no guessing step): the performer picks one word (three suggestions, one per difficulty, or their own) and starts a 120-second server countdown. The others guess as often as they like; guesses ignore case, spaces and punctuation, and words of 7+ letters allow one typo. The number of letters is revealed with 60 seconds left and the first letter with 30 left. The fastest correct guesses get position scoring, no correct guess gives 0, and the performer gets 5 (10 if passed on) once they have started.
+- **Samme bølgelengde** (challenge, no guessing step): 5 questions with two options, never a question used earlier in the same game. The performer and everyone still in answer each question; the result is shown when they all have answered or when the host shows it. A different answer (or none) puts a guesser out; the round ends after question 5 or when nobody is left. Guessers get 1 point per matching answer; the performer gets 1 point per guesser who matched all 5 (0 if the round ended early) and no completion bonus.
 - **Nest mest**: everyone picks 0–100. The highest number (all tied on it) drinks 5 sips automatically; the rest get position scoring from the top, so the second highest wins.
 - In Stein, saks, papir, Ville du helst and Nest mest nobody hands out sips; losers get the red drink screen directly.
 - Ranking uses absolute distance to the answer. Individual answers are clamped to the task's guessing bounds for scoring and reveal. The beer task displays 60 if the result exceeds 60.
@@ -79,6 +81,9 @@ The service worker caches the app shell, not Supabase data. Online multiplayer r
 - `supabase/migrations/006_would_you_rather_points.sql`: 3 points for the would-you-rather majority.
 - `supabase/migrations/007_more_challenges.sql`: Skritteller, Snap-streak and the cup-flip attempt counter (`answer.input: 'counter'`).
 - `supabase/migrations/008_top_five_and_second_highest.sql`: Topp 5 (word matching with typo tolerance, server countdown) and Nest mest.
+- `supabase/migrations/009_mime.sql`: Mim det (hidden word, server-timed hints) and task `repeat`.
+- `supabase/migrations/010_wavelength.sql`: Samme bølgelengde (question pool, elimination per question).
+- `supabase/migrations/011_stricter_typos.sql`: one shared typo rule for Topp 5 and Mim det.
 
 Private tables cannot be read or written by client roles. The exposed functions check `auth.uid()`, membership, phase and host/performer permissions. Hidden answers never enter a spectator's pre-reveal snapshot or Realtime event. Realtime sends only a session ID and version. The database session lock and allocation uniqueness constraint make simultaneous allocations safe. Host next/back requests include their expected phase to prevent duplicate requests skipping steps.
 

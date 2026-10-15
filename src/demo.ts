@@ -1,11 +1,15 @@
 import {
   beats,
+  mimeMatch,
   normalizeWord,
   participants,
   rankingPoints,
   roundPhases,
+  shuffledTasks,
   tasks,
   topWords,
+  wavelengthStatus,
+  wlStreak,
   type Game,
   type Hand,
   type Player,
@@ -15,10 +19,12 @@ import {
 /** Local single-device game. Mirrors the server rules in supabase/migrations. */
 type DemoGame = Game & {
   taskOrder: string[];
-  /** When the current round entered the performing step (Topp 5 countdown). */
+  /** When the current round's countdown started (Topp 5: entering the performing step; Mim det: the performer's start). */
   performingStartedAt?: number | null;
   usedTasks: string[];
   declined: string[];
+  /** Samme bølgelengde questions already used in this game. */
+  usedQuestions?: number[];
 };
 const key = "do-or-drink-demo";
 const uuid = () => crypto.randomUUID();
@@ -48,7 +54,7 @@ export function createDemo(name: string): Game {
     "Nora",
     "Emma",
   ].map((name) => ({ id: uuid(), name, score: 0, completed: false }));
-  const taskOrder = shuffle(Object.keys(tasks));
+  const taskOrder = shuffledTasks();
   const game: DemoGame = {
     id: "demo",
     code: "123456",
@@ -74,12 +80,20 @@ export function demoState(meId?: string): Game {
   if (meId && game.players.some((p) => p.id === meId)) game.meId = meId;
   const round = game.round;
   const { timeout, method } = round ? tasks[round.taskId].answer : { timeout: 0, method: "" };
-  if (round && method === "words" && game.performingStartedAt)
+  if (round && (method === "words" || method === "mime") && game.performingStartedAt)
     round.secondsLeft = Math.max(
       0,
       timeout! - (Date.now() - game.performingStartedAt) / 1000,
     );
-  if (round && !["reveal", "leaderboard", "sips"].includes(round.phase)) {
+  const revealed = round && ["reveal", "leaderboard", "sips"].includes(round.phase);
+  if (round && method === "mime" && round.word) {
+    const word = normalizeWord(round.word);
+    const left = round.secondsLeft ?? Infinity;
+    round.wordLength = revealed || left <= 60 ? word.length : null;
+    round.firstLetter = revealed || left <= 30 ? word[0].toLocaleUpperCase("nb-NO") : null;
+    if (!revealed && game.meId !== round.performerId) round.word = null;
+  }
+  if (round && !revealed) {
     const challenge = tasks[round.taskId].kind === "challenge";
     if (game.meId !== round.performerId) round.actual = null;
     round.winners = [];
@@ -92,6 +106,9 @@ export function demoState(meId?: string): Game {
         startedAt: mine ? q.startedAt : null,
         choice: mine ? q.choice : null,
         words: mine ? q.words : null,
+        // Others see '?' for an answer to the current question until its result is shown.
+        answers: mine || !q.answers ? q.answers : q.answers.map((a, i) =>
+          i < (round.wlStep ?? 0) || (i === round.wlStep && round.wlShown) ? a : a === null ? null : "?"),
         botChoice: null,
         drinks: false,
         points: 0,
@@ -110,9 +127,11 @@ export function demoState(meId?: string): Game {
 function nextRound(game: DemoGame) {
   const pool = participants(game).filter((p) => !p.completed);
   // Challenges only while someone still has their challenge left; everyone-tasks always.
+  // A task is next while it has been played fewer times than it appears so far in the order.
+  const count = (list: string[], t: string) => list.filter((x) => x === t).length;
   const taskId = game.taskOrder.find(
-    (t) =>
-      !game.usedTasks.includes(t) &&
+    (t, i) =>
+      count(game.usedTasks, t) < count(game.taskOrder.slice(0, i + 1), t) &&
       (tasks[t].kind === "everyone" || pool.length > 0),
   );
   if (!taskId) {
@@ -140,7 +159,17 @@ function nextRound(game: DemoGame) {
     tieChoice: null,
     drinks: false,
     words: null,
+    answers: null,
   }));
+  let wlQuestions: number[] | null = null;
+  if (task.answer.method === "wavelength") {
+    // Questions not used earlier in this game, and room for one answer per question.
+    const count = task.answer.questions ?? 5;
+    const used = game.usedQuestions ?? [];
+    wlQuestions = shuffle(task.questions!.map((_, i) => i).filter((i) => !used.includes(i))).slice(0, count);
+    game.usedQuestions = [...used, ...wlQuestions];
+    for (const q of responses) q.answers = Array(count).fill(null);
+  }
   if (task.answer.method === "rps") {
     // Random pairs; with an odd number the last player meets the machine.
     const order = shuffle(responses);
@@ -163,6 +192,9 @@ function nextRound(game: DemoGame) {
     winners: [],
     allocations: [],
     responses,
+    wlQuestions,
+    wlStep: 0,
+    wlShown: false,
   };
 }
 
@@ -203,6 +235,42 @@ function awardHighest(responses: Response[]) {
     q.rank = ranked.findIndex((other) => other.choice === q.choice) + 1;
     q.points = rankingPoints(count, q.rank);
   });
+}
+
+function awardMime(game: DemoGame) {
+  // The fastest correct guess wins with position scoring; the performer scores once they have started.
+  const r = game.round!;
+  const guessers = r.responses.filter((q) => q.playerId !== r.performerId);
+  const correct = guessers
+    .filter((q) => q.finished && q.actual !== null)
+    .sort((a, b) => a.actual! - b.actual!);
+  correct.forEach((q) => {
+    q.rank = correct.findIndex((other) => other.actual === q.actual) + 1;
+    q.points = rankingPoints(guessers.length, q.rank);
+  });
+  if (r.performerId && game.performingStartedAt) {
+    r.responses.find((q) => q.playerId === r.performerId)!.points =
+      r.transferred ? 10 : 5;
+    game.players.find((p) => p.id === r.performerId)!.completed = true;
+  }
+}
+
+function awardWavelength(game: DemoGame) {
+  // Guessers: 1 point per answer like the performer's, until the first different one.
+  // Performer: 1 point per guesser who matched every question, only when all questions were played.
+  const r = game.round!;
+  const { total, step, shown, fasit, guessers } = wavelengthStatus(r);
+  const steps = step + (shown ? 1 : 0);
+  for (const q of guessers) q.points = wlStreak(q.answers, fasit, steps);
+  const performer = r.responses.find((q) => q.playerId === r.performerId)!;
+  if (steps === total) performer.points = guessers.filter((q) => wlStreak(q.answers, fasit, steps) === steps).length;
+  if (fasit[0] != null) game.players.find((p) => p.id === r.performerId)!.completed = true;
+}
+
+/** Shows the current question's result once the performer and every guesser still in have answered. */
+function wavelengthCheck(r: NonNullable<Game["round"]>) {
+  const { step, fasit, alive } = wavelengthStatus(r);
+  if (fasit[step] != null && alive.every((q) => q.answers?.[step] != null)) r.wlShown = true;
 }
 
 function awardScores(game: DemoGame) {
@@ -253,6 +321,8 @@ function award(game: DemoGame) {
   if (task.answer.method === "rps") awardRps(r.responses);
   else if (task.answer.method === "choice") awardChoice(r.responses);
   else if (task.answer.method === "highest") awardHighest(r.responses);
+  else if (task.answer.method === "mime") awardMime(game);
+  else if (task.answer.method === "wavelength") awardWavelength(game);
   else if (task.answer.method === "words") {
     r.topWords = topWords(r.responses);
     for (const q of r.responses)
@@ -335,7 +405,7 @@ export function demoAction(
     const task = tasks[r.taskId];
     const challenge = task.kind === "challenge";
     const q = r.responses.find((q) => q.playerId === meId);
-    if (["guess", "timer_start", "timer_stop", "choose", "words"].includes(action) && !q)
+    if (["guess", "timer_start", "timer_stop", "choose", "words", "mime_guess", "wl_answer"].includes(action) && !q)
       throw new Error("Du deltar ikke i denne runden.");
     if (action === "accept" || action === "decline") {
       if (
@@ -422,6 +492,62 @@ export function demoAction(
         throw new Error(`Du kan skrive inntil ${words} ord.`);
       q!.words = [...new Set(payload.value.map((w) => normalizeWord(String(w))).filter(Boolean))];
       q!.finished = q!.words.length > 0;
+    } else if (action === "mime_word" || action === "mime_start") {
+      if (r.phase !== "performing" || r.awarded || task.answer.method !== "mime" || meId !== r.performerId)
+        throw new Error("Bare den som mimer kan gjøre dette nå.");
+      if (game.performingStartedAt) throw new Error("Mimingen er allerede i gang.");
+      if (action === "mime_word") {
+        const word = String(payload.value ?? "").trim();
+        if (/\s/.test(word)) throw new Error("Bare ett ord, uten mellomrom.");
+        if (!normalizeWord(word) || word.length > 24) throw new Error("Skriv ett ord på 1–24 tegn.");
+        r.word = word;
+      } else {
+        if (!r.word) throw new Error("Velg et ord først.");
+        game.performingStartedAt = Date.now();
+        r.responses.find((o) => o.playerId === meId)!.finished = true;
+      }
+    } else if (action === "mime_guess") {
+      if (r.phase !== "performing" || r.awarded || task.answer.method !== "mime" || meId === r.performerId || !game.performingStartedAt)
+        throw new Error("Du kan ikke gjette nå.");
+      if (q!.finished) throw new Error("Du har allerede gjettet riktig.");
+      const elapsed = (Date.now() - game.performingStartedAt) / 1000;
+      // One second of grace for network delay.
+      if (elapsed > task.answer.timeout! + 1) throw new Error("Tiden er ute.");
+      const guess = String(payload.value ?? "");
+      if (/\s/.test(guess)) throw new Error("Svaret er ett ord, uten mellomrom.");
+      if (!normalizeWord(guess)) throw new Error("Skriv et ord.");
+      if (mimeMatch(normalizeWord(guess), normalizeWord(r.word!))) {
+        q!.actual = Math.round(Math.min(elapsed, task.answer.timeout!) * 100) / 100;
+        q!.finished = true;
+      }
+    } else if (action === "wl_answer") {
+      if (r.phase !== "performing" || r.awarded || task.answer.method !== "wavelength")
+        throw new Error("Du kan ikke svare nå.");
+      if (r.wlShown) throw new Error("Vent på neste spørsmål.");
+      const { step, fasit } = wavelengthStatus(r);
+      if (meId !== r.performerId && wlStreak(q!.answers, fasit, step) < step)
+        throw new Error("Du er ute av denne runden.");
+      if (q!.answers![step] != null) throw new Error("Du har allerede svart.");
+      const picked = String(payload.value);
+      if (!["0", "1"].includes(picked)) throw new Error("Ugyldig valg.");
+      q!.answers![step] = picked;
+      wavelengthCheck(r);
+    } else if (action === "wl_reveal" || action === "wl_next") {
+      if (!host) throw new Error("Bare verten kan styre spørsmålene.");
+      if (r.phase !== "performing" || r.awarded || task.answer.method !== "wavelength")
+        throw new Error("Du kan ikke gjøre dette nå.");
+      const { step, shown, done, fasit } = wavelengthStatus(r);
+      if (payload.step !== step) throw new Error("Spørsmålet er endret. Prøv igjen.");
+      if (action === "wl_reveal") {
+        if (shown) throw new Error("Svaret vises allerede.");
+        if (fasit[step] == null) throw new Error("Venter på svaret til den som er trukket ut.");
+        r.wlShown = true;
+      } else {
+        if (!shown) throw new Error("Vis svaret først.");
+        if (done) throw new Error("Runden er ferdig. Gå videre til fasiten.");
+        r.wlStep = step + 1;
+        r.wlShown = false;
+      }
     } else if (action === "allocate") {
       const target = String(payload.recipientId);
       if (
@@ -452,7 +578,9 @@ export function demoAction(
         nextRound(game);
       } else {
         const phase = phases[index + 1];
-        if (phase === "performing") game.performingStartedAt ??= Date.now();
+        // Mim det starts its countdown when the performer presses start.
+        if (phase === "performing" && task.answer.method !== "mime")
+          game.performingStartedAt ??= Date.now();
         if (phase === "reveal") award(game);
         r.phase = phase;
       }

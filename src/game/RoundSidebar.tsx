@@ -11,11 +11,11 @@ function ResponseStatus({ state }: { state: RoundState }) {
   return (
     <div className="side-card response-status">
       <div className="section-title">
-        <h3>{round.phase === 'guessing' ? 'Svarstatus' : 'Fullførte'}</h3>
+        <h3>{round.phase === 'guessing' ? 'Svarstatus' : state.task.answer.method === 'mime' ? 'Gjettet riktig' : state.task.answer.method === 'wavelength' ? 'Har svart' : 'Fullførte'}</h3>
         <strong className="lime">{readyCount}/{readyTotal}</strong>
       </div>
       <div className="progress-track"><span style={{ width: `${readyTotal ? readyCount / readyTotal * 100 : 100}%` }} /></div>
-      {ready ? <p className="status-ready"><Check size={16} /> Alle er klare</p> : <>
+      {ready ? <p className="status-ready"><Check size={16} /> Alle er klare</p> : waitingOn.length > 0 && <>
         <p className="muted">Venter på</p>
         <div className="missing-players">
           {waitingOn.slice(0, visibleWaitingCount).map(p => <span key={p.id}><Avatar player={p} small />{p.name}</span>)}

@@ -15,7 +15,7 @@ import { useGame, type Act } from '../game/useGame';
 export default function GamePage() {
   const { sessionId = '' } = useParams();
   const navigate = useNavigate();
-  const { game, error, setError, busy, offline, act: send, switchPlayer } = useGame(sessionId);
+  const { game, error, setError, busy, offline, act: send, refresh, switchPlayer } = useGame(sessionId);
   const [confirm, setConfirm] = useState<ConfirmKind | null>(null);
 
   // A pending confirmation no longer applies once the step changes or an action succeeds.
@@ -50,7 +50,7 @@ export default function GamePage() {
 
       {game.status === 'lobby' && <Lobby game={game} isHost={isHost} busy={busy} offline={offline} act={act} onError={setError} />}
       {game.status === 'finished' && <FinishedView game={game} onLeave={() => { leaveDevice(); navigate('/'); }} />}
-      {roundState && <RoundView state={roundState} busy={busy} offline={offline} act={act} onConfirm={setConfirm} />}
+      {roundState && <RoundView state={roundState} busy={busy} offline={offline} act={act} refresh={refresh} onConfirm={setConfirm} />}
 
       {confirm && <ConfirmDialog kind={confirm} phase={game.round?.phase} busy={busy}
         onConfirm={() => void act(confirm)} onCancel={() => setConfirm(null)} />}

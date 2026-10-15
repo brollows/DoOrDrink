@@ -9,7 +9,9 @@ type Props = {
 
 function resultDetail(player: Player, total: boolean, round: Round | null, task: Task | null, response: Response | undefined) {
   if (total) return player.completed ? 'Oppgave fullført' : '';
-  if (player.id === round?.performerId) return 'Utførte oppgaven';
+  if (player.id === round?.performerId) return task?.answer.method === 'mime' ? 'Mimet' : task?.answer.method === 'wavelength' ? 'Var fasiten' : 'Utførte oppgaven';
+  if (task?.answer.method === 'wavelength') return `${response?.points ?? 0} av ${task.answer.questions ?? 5} like svar`;
+  if (task?.answer.method === 'mime') return response?.actual != null ? `Gjettet det på ${formatTime(response.actual)} s` : 'Gjettet ikke';
   if (task?.kind === 'challenge') return response && response.guess !== null ? `Gjettet ${formatAnswer(response.guess, task)} ${task.answer.unit}` : 'Ikke svart';
   if (!response || response.actual === null) return 'Ikke fullført';
   if (response.actual >= (task?.answer.timeout || Infinity)) return 'Tiden gikk ut';

@@ -1,7 +1,7 @@
-import { ChevronsUp, CupSoda, Flame, Footprints, Grab, Hand, ListOrdered, Ruler, Scissors, Split, Timer, Wine, type LucideProps } from 'lucide-react';
+import { AudioWaveform, ChevronsUp, CupSoda, Drama, Flame, Footprints, Grab, Hand, ListOrdered, Ruler, Scissors, Split, Timer, Wine, type LucideProps } from 'lucide-react';
 import type { Hand as HandName, Task } from '../model';
 
-const taskIcons: Record<string, typeof Ruler> = { steps: Footprints, snap_streak: Flame, cup_flip: CupSoda };
+const taskIcons: Record<string, typeof Ruler> = { steps: Footprints, snap_streak: Flame, cup_flip: CupSoda, mime: Drama, wavelength: AudioWaveform };
 
 export function TaskIcon({ task, ...props }: { task: Task } & LucideProps) {
   const Icon = taskIcons[task.id];

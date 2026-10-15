@@ -66,5 +66,5 @@ export function useGame(sessionId: string) {
     setGame(await fetchGame('demo', playerId));
   }, []);
 
-  return { game, error, setError, busy, offline, act, switchPlayer };
+  return { game, error, setError, busy, offline, act, refresh, switchPlayer };
 }
