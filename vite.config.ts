@@ -5,7 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig({
   plugins: [react(), VitePWA({
     registerType: 'prompt',
-    includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+    includeAssets: ['favicon.png', 'apple-touch-icon.png'],
     manifest: {
       name: 'DoOrDrink', short_name: 'DoOrDrink', lang: 'nb',
       description: 'Gjett, utfordre og spill sammen.',
