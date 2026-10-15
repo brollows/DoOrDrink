@@ -20,7 +20,7 @@ The local project is connected to `https://mavqjmobgreyoyuqvquv.supabase.co`. Bo
 
 1. Create a dedicated Supabase project.
 2. Enable **Authentication → Sign In / Providers → Anonymous Sign-Ins**. Players never need to provide an email or password.
-3. Run `supabase/migrations/001_game.sql` in the SQL Editor, then `002_cleanup.sql` and `003`–`008` in numeric order. Run each migration once, in order; do not rerun earlier ones on an existing database.
+3. Run `supabase/migrations/001_game.sql` in the SQL Editor, then `002_cleanup.sql` and `003`–`011` in numeric order (every file in `supabase/migrations/`). Run each migration once, in order; do not rerun earlier ones on an existing database. An existing database only needs the migrations it does not have yet.
 4. Copy `.env.example` to `.env`, and enter the project's URL and public publishable/anon key. Never put a `service_role` or secret key in a `VITE_` variable.
 5. Restart the development server.
 6. Verify that `public.session_updates` is enabled in the `supabase_realtime` publication. The first migration adds it when the publication exists.
@@ -87,7 +87,7 @@ The service worker caches the app shell, not Supabase data. Online multiplayer r
 
 Private tables cannot be read or written by client roles. The exposed functions check `auth.uid()`, membership, phase and host/performer permissions. Hidden answers never enter a spectator's pre-reveal snapshot or Realtime event. Realtime sends only a session ID and version. The database session lock and allocation uniqueness constraint make simultaneous allocations safe. Host next/back requests include their expected phase to prevent duplicate requests skipping steps.
 
-Tasks are data-driven in `game_private.tasks.definition`; the field reference is at the top of `005_more_tasks.sql`. Methods: `stopwatch`, `manual` (entered by host or performer), `rps` and `choice` (two `options`). New games include every row in `game_private.tasks`, so a new would-you-rather question or manual challenge only needs an insert. Add the same definition to `tasks` in `src/model.ts` so the local demo includes it.
+Tasks are data-driven in `game_private.tasks.definition`; the field reference is at the top of `005_more_tasks.sql`, with later fields described at the top of `008`–`010`. Methods: `stopwatch`, `manual` (entered by host or performer), `rps`, `choice` (two `options`), `words` (Topp 5), `highest` (Nest mest), `mime` (Mim det) and `wavelength` (Samme bølgelengde, with a `questions` pool). New games include every row in `game_private.tasks` (`repeat` times, default once), so a new would-you-rather question or manual challenge only needs an insert. Add the same definition to `tasks` in `src/model.ts` so the local demo includes it.
 
 ## Validation
 
