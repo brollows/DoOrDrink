@@ -24,7 +24,7 @@ export function remember(game: Game) {
 export function leaveDevice() { localStorage.removeItem(storageKey); }
 
 async function authenticate() {
-  if (!supabase) throw new Error('Spillet er ikke koblet til ennå. Du kan prøve et lokalt spill.');
+  if (!supabase) throw new Error('Spillet er ikke koblet til ennå.');
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
   if (!data.session) {
@@ -38,8 +38,8 @@ async function rpc(name: string, args: Record<string, unknown>): Promise<Game> {
   if (error) throw new Error(error.message);
   return data as Game;
 }
-export async function createGame(name: string, demo = false) {
-  const game = demo ? createDemo(name) : await rpc('create_game', { p_name: name });
+export async function createGame(name: string) {
+  const game = await rpc('create_game', { p_name: name });
   remember(game);
   return game;
 }

@@ -17,7 +17,7 @@ These instructions apply only to the current project and must be followed whenev
 - Shared patterns: `.button` + `.primary` / `.secondary` / `.wide`, `.pill`, `.eyebrow`, `.muted`, `.side-card` / `.players-card` / `.round-card` / `.entry-card` panels, `.waiting`, `.error`, `.offline`, `.avatar`, `.modal`.
 - Icons come from `lucide-react`.
 - The UI language is Norwegian (bokmål). Keep new copy in Norwegian.
-- Demo mode ("Prøv et lokalt spill" on the home page) runs the full game flow without Supabase — use it for visual verification.
+- The hidden test page (`/test`, not linked from the app) runs the full game flow locally without Supabase, either the whole game or one task at a time — use it for visual verification.
 
 ## 1. Responsive Design — Mobile, Tablet & Desktop
 
@@ -118,7 +118,7 @@ Whenever you create or modify UI:
 6. Ensure the result follows the project's established visual identity.
 7. Check that responsive behavior does not break existing functionality.
 
-If browser-based testing is available, visually inspect the application at multiple viewport sizes (`npm run dev`, then use demo mode to reach the game screens). Otherwise, inspect the CSS and component structure and clearly state what has not been visually verified.
+If browser-based testing is available, visually inspect the application at multiple viewport sizes (`npm run dev`, then open `/test` to reach the game screens). Otherwise, inspect the CSS and component structure and clearly state what has not been visually verified.
 
 ## 7. Apply These Rules to All Future UI Work
 

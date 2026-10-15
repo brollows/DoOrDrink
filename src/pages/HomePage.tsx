@@ -18,12 +18,12 @@ export default function HomePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const submit = async (demo = false) => {
-    if (!name.trim() && !demo) { setError('Skriv inn navnet ditt først.'); return; }
-    if (mode === 'join' && !demo && !/^\d{6}$/.test(code)) { setError('Spillkoden må ha seks siffer.'); return; }
+  const submit = async () => {
+    if (!name.trim()) { setError('Skriv inn navnet ditt først.'); return; }
+    if (mode === 'join' && !/^\d{6}$/.test(code)) { setError('Spillkoden må ha seks siffer.'); return; }
     setBusy(true); setError('');
     try {
-      const game = mode === 'join' && !demo ? await joinGame(code, name) : await createGame(name, demo);
+      const game = mode === 'join' ? await joinGame(code, name) : await createGame(name);
       navigate(`/game/${game.id}`);
     } catch (error) { setError((error as Error).message); }
     finally { setBusy(false); }
@@ -80,8 +80,7 @@ export default function HomePage() {
             </button>
           </form>
 
-          {!configured && <p className="setup-note">Nettspill er ikke koblet til ennå. Prøv spillflyten lokalt nedenfor.</p>}
-          <button className="demo-link" disabled={busy} onClick={() => void submit(true)}><Dices size={17} /> Prøv et lokalt spill</button>
+          {!configured && <p className="setup-note">Nettspill er ikke koblet til ennå.</p>}
           <div className="entry-footer">
             <Users size={16} /><span>2–40 spillere</span><span className="separator">·</span><span>Ingen konto nødvendig</span>
           </div>

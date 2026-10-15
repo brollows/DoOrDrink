@@ -12,7 +12,7 @@ Short version:
 - Reuse the existing design system: tokens on `:root` in `src/styles.css`, shared classes (`.button`, `.primary`, `.secondary`, `.pill`, `.eyebrow`, cards, `.waiting`, `.error`). No hardcoded colors when a token exists.
 - Touch targets ≥44px, visible focus indicators, consistent hover/active/disabled states.
 - Preserve existing design and functionality; prefer small consistent improvements over rewrites. No new UI frameworks.
-- Use demo mode ("Prøv et lokalt spill") to visually verify game screens.
+- Use the hidden test page (`/test`) to visually verify game screens: play the whole game or one task at a time.
 
 ## Scoring rules for tasks
 

@@ -12,7 +12,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173. Without environment variables, use **Prøv et lokalt spill**. This creates six test players; **Se som** switches between their screens. Return to the host to advance the game. Demo data is local to the browser and is not network multiplayer.
+Open http://localhost:5173/test (hidden, not linked from the app). **Prøv hele spillet** plays the whole game, or pick one game to play it from its introduction to the final scores. Both create six test players; **Se som** switches between their screens. Return to the host to advance the game. Demo data is local to the browser and is not network multiplayer.
 
 ## Connect Supabase
 

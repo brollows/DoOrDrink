@@ -11,8 +11,7 @@
   .entry-card form { margin-top: 18px; }
   .entry-card input { min-height: 48px; padding: 12px 14px; margin-bottom: 15px; }
   .entry-card label { margin-bottom: 7px; }
-  .entry-footer { padding-top: 12px; }
-  .demo-link { min-height: 44px; padding: 12px 0; }
+  .entry-footer { padding-top: 12px; margin-top: 16px; }
   .home-footer { gap: 18px; padding: 15px 0 calc(15px + env(safe-area-inset-bottom)); }
   .home-footer > span { display: none; }
 
