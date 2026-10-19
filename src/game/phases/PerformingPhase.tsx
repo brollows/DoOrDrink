@@ -107,7 +107,7 @@ function NumberPicker({ state, busy, offline, act }: PhaseProps) {
       <span className="large-icon"><Check size={30} /></span>
       <h2>Tallet ditt er låst</h2>
       <strong>{myResponse!.choice}</strong>
-      <p className="muted">Høyest tar {sipCount(task)} slurker. Nest høyest vinner.</p>
+      <p className="muted">{state.game.gameSips !== false ? `Høyest tar ${sipCount(task)} slurker.` : 'Høyest taper.'} Nest høyest vinner.</p>
     </div>
   );
   return (

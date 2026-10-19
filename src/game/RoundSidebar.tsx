@@ -1,6 +1,7 @@
 import { Check } from 'lucide-react';
 import { Avatar } from '../components/Avatar';
 import type { RoundState } from './roundState';
+import { taskDescription } from '../model';
 
 const visibleWaitingCount = 3;
 
@@ -35,7 +36,7 @@ export function RoundSidebar({ state }: { state: RoundState }) {
       <div className="side-card">
         <span className="eyebrow">DENNE RUNDEN</span>
         <h3>{task.title}</h3>
-        <p className="muted">{task.description}</p>
+        <p className="muted">{taskDescription(task, state.game)}</p>
         {performer && <div className="side-performer"><Avatar player={performer} small /><span>{performer.name}</span></div>}
       </div>
       {showStatus && <ResponseStatus state={state} />}

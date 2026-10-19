@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 import { mimeMatch, mimeSuggestions, normalizeWord, rankingPoints, sameWord, shuffledTasks, tasks as taskDefinitions } from '../src/model';
+import { allTaskIds, simulateDuration, taskTiming } from '../src/duration';
 
 const db = new PGlite();
 const users = Array.from({ length: 10 }, (_, i) => `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`);
@@ -33,11 +34,121 @@ before(async () => {
   await db.exec(`create role anon; create role authenticated; create schema auth;
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.user_id',true),'')::uuid$$;`);
   // 002 schedules cleanup with pg_cron, which PGlite does not provide.
-  for (const migration of ['001_game.sql', '003_host_plays.sql', '004_sips_before_leaderboard.sql', '005_more_tasks.sql', '006_would_you_rather_points.sql', '007_more_challenges.sql', '008_top_five_and_second_highest.sql', '009_mime.sql', '010_wavelength.sql', '011_stricter_typos.sql'])
+  for (const migration of ['001_game.sql', '003_host_plays.sql', '004_sips_before_leaderboard.sql', '005_more_tasks.sql', '006_would_you_rather_points.sql', '007_more_challenges.sql', '008_top_five_and_second_highest.sql', '009_mime.sql', '010_wavelength.sql', '011_stricter_typos.sql', '012_host_settings.sql'])
     await db.exec(await readFile(new URL(`../supabase/migrations/${migration}`, import.meta.url), 'utf8'));
 });
 after(async () => { await db.close(); });
 beforeEach(async () => { await db.exec('delete from game_private.sessions'); });
+
+test('host can make any member a spectator; spectators never perform, respond, score or receive sips', async () => {
+  let game = await create(6, ['height', 'ten_seconds']);
+  const tv = game.players[1].id;
+  for (const playerId of [game.hostId, tv]) game = await act(game, 'spectator', { playerId, value: true });
+  await identity(1);
+  await assert.rejects(() => act(game, 'spectator', { playerId: tv, value: false }), /Bare verten/);
+  await assert.rejects(() => act(game, 'settings', { gameSips: false }), /Bare verten/);
+  await assert.rejects(() => act(game, 'skip_round'), /Bare verten/);
+  await identity(0);
+  game = await act(game, 'start');
+  assert.equal(game.round.responses.length, 4);
+  assert.ok(![game.hostId, tv].includes(game.round.performerId));
+  await identity(1);
+  await assert.rejects(() => act(game, 'guess', { value: 180 }), /deltar ikke/);
+  await identity(0);
+  await assert.rejects(() => act(game, 'spectator', { playerId: tv, value: false }), /før spillet/);
+  await asPlayer(game, game.round.performerId); game = await act(game, 'accept');
+  await identity(0); game = await act(game, 'next'); game = await act(game, 'next');
+  await asPlayer(game, game.round.performerId); game = await act(game, 'manual_result', { value: 180 });
+  await identity(0); game = await act(game, 'next'); game = await act(game, 'next');
+  assert.equal(game.round.phase, 'sips');
+  await asPlayer(game, game.round.winners[0]);
+  await assert.rejects(() => act(game, 'allocate', { recipientId: tv }), /kan ikke få/);
+  for (const id of [game.hostId, tv]) assert.equal(game.players.find(p => p.id === id)!.score, 0);
+});
+
+test('spectator roles are reversible and at least two active players are required', async () => {
+  let game = await create(3);
+  game = await act(game, 'spectator', { playerId: game.players[1].id, value: true });
+  game = await act(game, 'spectator', { playerId: game.hostId, value: true });
+  await assert.rejects(() => act(game, 'start'), /minst to/);
+  await assert.rejects(() => act(game, 'spectator', { playerId: game.hostId }), /Ugyldig/);
+  game = await act(game, 'spectator', { playerId: game.hostId, value: false });
+  game = await act(game, 'start');
+  assert.equal(game.round.responses.length, 2);
+});
+
+test('each sip setting independently removes its step forwards and backwards without changing scores', async () => {
+  for (const playerSips of [true, false]) for (const gameSips of [true, false]) {
+    let game = await create(4, ['wyr_honest', 'ten_seconds']);
+    game = await act(game, 'settings', { playerSips, gameSips });
+    game = await act(game, 'start'); game = await act(game, 'next');
+    for (const [i, player] of game.players.entries()) {
+      await asPlayer(game, player.id); await act(game, 'choose', { value: i === 0 ? '0' : '1' });
+    }
+    await identity(0); game = await act(game, 'next');
+    assert.deepEqual(game.round.responses.map(q => q.points).sort(), [0, 3, 3, 3]);
+    assert.equal(game.round.responses.some(q => q.drinks), gameSips);
+    game = await act(game, 'next');
+    assert.equal(game.round.phase, gameSips ? 'sips' : 'leaderboard');
+    game = await act(game, 'back'); assert.equal(game.round.phase, 'reveal');
+    game = await act(game, 'next'); if (gameSips) game = await act(game, 'next');
+    game = await act(game, 'next'); game = await act(game, 'next'); game = await act(game, 'next');
+    assert.equal(game.round.phase, 'reveal');
+    game = await act(game, 'next'); assert.equal(game.round.phase, playerSips ? 'sips' : 'leaderboard');
+    if (!playerSips) await assert.rejects(() => act(game, 'allocate', { recipientId: game.players[1].id }), /kan ikke dele/);
+    await assert.rejects(() => act(game, 'settings', { playerSips: true }), /før spillet/);
+  }
+});
+
+test('task selection validates repetitions, is host-only, persists and plays both chosen occurrences', async () => {
+  let game = await create(4);
+  for (const tasks of [[], ['missing'], ['beer', 'beer', 'beer'], ['height', 'height'], [null]])
+    await assert.rejects(() => act(game, 'settings', { tasks }), /Velg minst|Ugyldig/);
+  await assert.rejects(() => act(game, 'settings', { gameSips: 'false' }), /Ugyldig/);
+  game = await act(game, 'settings', { tasks: ['beer', 'beer'] });
+  const hostState = await rpc('game_state', [game.id]) as State & { selectedTasks: string[] };
+  assert.deepEqual(hostState.selectedTasks, ['beer', 'beer']);
+  await identity(1);
+  const guest = await rpc('game_state', [game.id]) as State & { selectedTasks: null };
+  assert.equal(guest.selectedTasks, null);
+  await identity(0); game = await act(game, 'start');
+  const previous = game.round.id;
+  game = await act(game, 'skip_round'); assert.equal(game.round.taskId, 'beer'); assert.notEqual(game.round.id, previous);
+  game = await act(game, 'skip_round'); assert.equal(game.status, 'finished');
+});
+
+test('skipping a round discards unawarded answers, retains revealed points, rejects stale requests', async () => {
+  let game = await create(4, ['wyr_honest', 'wyr_beer', 'ten_seconds']);
+  game = await act(game, 'start'); game = await act(game, 'next');
+  await asPlayer(game, game.players[1].id); game = await act(game, 'choose', { value: '1' });
+  await identity(0);
+  const stale = game;
+  game = await act(game, 'skip_round');
+  assert.equal(game.players.every(p => p.score === 0 && !p.completed), true);
+  await assert.rejects(() => act(stale, 'skip_round'), /Runden er endret/);
+  game = await act(game, 'next');
+  await asPlayer(game, game.players[1].id); game = await act(game, 'choose', { value: '1' });
+  await identity(0); game = await act(game, 'next');
+  const scores = game.players.map(p => p.score);
+  assert.ok(scores.some(score => score > 0));
+  game = await act(game, 'skip_round');
+  assert.deepEqual(game.players.map(p => p.score), scores);
+  assert.equal(game.round.taskId, 'ten_seconds');
+});
+
+test('duration simulation includes human time, task differences, player challenge limits and independent sip settings', () => {
+  const opts = { playerSips: false, gameSips: false };
+  const full = simulateDuration(allTaskIds, 10, opts);
+  assert.deepEqual(full, simulateDuration(allTaskIds, 10, opts));
+  assert.ok(full.low > 20 && full.high < 120);
+  assert.ok(full.low < full.median && full.median < full.high);
+  assert.ok(simulateDuration(allTaskIds, 10, { playerSips: true, gameSips: true }).median > full.median);
+  assert.ok(simulateDuration(allTaskIds, 10, { ...opts, half: true }).median < full.median);
+  assert.ok(simulateDuration(allTaskIds, 2, opts).rounds < full.rounds);
+  assert.ok(taskTiming(taskDefinitions.beer)[1] > taskTiming(taskDefinitions.wyr_beer)[1]);
+  assert.ok(simulateDuration(['beer'], 10, opts).median > simulateDuration(['wyr_beer'], 10, opts).median);
+  assert.deepEqual(simulateDuration([], 10, opts), { low: 0, median: 0, high: 0, rounds: 0 });
+});
 
 test('position scores follow the stated bonuses, including a two-player round', () => {
   assert.deepEqual(Array.from({ length: 9 }, (_, i) => rankingPoints(9, 9 - i)), [1, 2, 3, 4, 5, 6, 7, 9, 12]);

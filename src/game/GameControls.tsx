@@ -1,4 +1,4 @@
-import { ChevronLeft, Flag, Hourglass } from 'lucide-react';
+import { ChevronLeft, Flag, Hourglass, SkipForward } from 'lucide-react';
 import { phaseNames } from '../model';
 import type { ConfirmKind } from './ConfirmDialog';
 import type { RoundState } from './roundState';
@@ -28,6 +28,7 @@ export function HostControls({ state, busy, offline, act, onConfirm }: Props) {
         {nextLabel}
         {canMonitor && readyTotal > 0 && <span className="counter">{readyCount}/{readyTotal}</span>}
       </button>
+      <button className="end-button" aria-label="Hopp over runden" title="Hopp over runden" disabled={disabled} onClick={() => onConfirm('skip_round')}><SkipForward size={20} /></button>
       <button className="end-button" aria-label="Avslutt spillet" disabled={disabled} onClick={() => onConfirm('end')}><Flag size={19} /></button>
     </footer>
   );

@@ -65,6 +65,8 @@ export function createDemo(name: string, options: { tasks?: string[]; test?: boo
     code: "123456",
     hostId: players[0].id,
     hostPlays: true,
+    playerSips: true,
+    gameSips: true,
     meId: players[0].id,
     status: "lobby",
     expiresAt: new Date(Date.now() + 86400000).toISOString(),
@@ -83,6 +85,7 @@ export function createDemo(name: string, options: { tasks?: string[]; test?: boo
 export function demoState(meId?: string): Game {
   const game = structuredClone(read());
   if (meId && game.players.some((p) => p.id === meId)) game.meId = meId;
+  game.selectedTasks = game.meId === game.hostId ? [...game.taskOrder] : undefined;
   const round = game.round;
   const { timeout, method } = round ? tasks[round.taskId].answer : { timeout: 0, method: "" };
   if (round && (method === "words" || method === "mime") && game.performingStartedAt)
@@ -125,6 +128,10 @@ export function demoState(meId?: string): Game {
       ...q,
       startedAt: q.playerId === game.meId ? q.startedAt : null,
     }));
+  }
+  if (round) {
+    if (game.gameSips === false) round.responses.forEach(q => { q.drinks = false; });
+    if (game.playerSips === false) round.winners = [];
   }
   return game;
 }
@@ -390,7 +397,7 @@ export function demoAction(
   const game = read();
   const r = game.round;
   const host = meId === game.hostId;
-  if (["start", "next", "back", "end", "host_plays"].includes(action) && !host)
+  if (["start", "next", "back", "end", "host_plays", "spectator", "settings", "skip_round"].includes(action) && !host)
     throw new Error("Bare verten kan styre spillet.");
   if (action === "start" && game.status === "lobby") {
     if (participants(game).length < 2)
@@ -401,18 +408,42 @@ export function demoAction(
       throw new Error("Dette kan bare endres før spillet starter.");
     if (typeof payload.value !== "boolean") throw new Error("Ugyldig valg.");
     game.hostPlays = payload.value;
+    game.players.find(p => p.id === game.hostId)!.spectator = !payload.value;
+  } else if (action === "spectator" || action === "settings") {
+    if (game.status !== "lobby") throw new Error("Dette kan bare endres før spillet starter.");
+    if (action === "spectator") {
+      const player = game.players.find(p => p.id === payload.playerId);
+      if (!player || typeof payload.value !== "boolean") throw new Error("Ugyldig valg.");
+      player.spectator = payload.value;
+      if (player.id === game.hostId) game.hostPlays = !payload.value;
+    } else {
+      for (const key of ["playerSips", "gameSips"] as const) if (key in payload) {
+        if (typeof payload[key] !== "boolean") throw new Error("Ugyldig valg.");
+        game[key] = payload[key];
+      }
+      if ("tasks" in payload) {
+        const selected = payload.tasks;
+        if (!Array.isArray(selected) || !selected.length || selected.some(id =>
+          typeof id !== "string" || !tasks[id] || selected.filter((other: unknown) => other === id).length > (tasks[id].repeat ?? 1)))
+          throw new Error("Ugyldig oppgaveliste.");
+        game.taskOrder = shuffledTasks(Math.random, payload.tasks as string[]);
+        game.taskCount = game.taskOrder.length;
+      }
+    }
   } else if (action === "end") game.status = "finished";
   else {
     if (!r || game.status !== "playing" || payload.roundId !== r.id)
       throw new Error("Runden er endret.");
-    if (["next", "back"].includes(action) && payload.phase !== r.phase)
+    if (["next", "back", "skip_round"].includes(action) && payload.phase !== r.phase)
       throw new Error("Steget er endret.");
     const task = tasks[r.taskId];
     const challenge = task.kind === "challenge";
     const q = r.responses.find((q) => q.playerId === meId);
     if (["guess", "timer_start", "timer_stop", "choose", "words", "mime_guess", "wl_answer"].includes(action) && !q)
       throw new Error("Du deltar ikke i denne runden.");
-    if (action === "accept" || action === "decline") {
+    if (action === "skip_round") {
+      nextRound(game);
+    } else if (action === "accept" || action === "decline") {
       if (
         r.phase !== "assignment" ||
         r.accepted ||
@@ -556,7 +587,7 @@ export function demoAction(
     } else if (action === "allocate") {
       const target = String(payload.recipientId);
       if (
-        r.phase !== "sips" ||
+        game.playerSips === false || task.sips === "losers" || r.phase !== "sips" ||
         !r.winners.includes(meId) ||
         !participants(game).some((p) => p.id === target) ||
         r.winners.includes(target)
@@ -572,7 +603,7 @@ export function demoAction(
         );
       r.allocations.push({ giverId: meId, recipientId: target });
     } else if (action === "next" || action === "back") {
-      const phases = roundPhases(r.taskId);
+      const phases = roundPhases(r.taskId, task, game);
       const index = phases.indexOf(r.phase);
       if (action === "back") {
         if (!index) throw new Error("Dette er første steg.");

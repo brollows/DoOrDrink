@@ -34,7 +34,7 @@ type Props = {
 
 function Stepper({ state }: { state: RoundState }) {
   const { round, task } = state;
-  const phases = roundPhases(round.taskId, task);
+  const phases = roundPhases(round.taskId, task, state.game);
   const currentIndex = phases.indexOf(round.phase);
   return (
     <nav className="stepper" aria-label="Spillsteg">

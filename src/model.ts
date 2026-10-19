@@ -1,5 +1,5 @@
 export type Phase = 'assignment' | 'guessing' | 'performing' | 'reveal' | 'sips' | 'leaderboard';
-export type Player = { id: string; name: string; score: number; completed: boolean };
+export type Player = { id: string; name: string; score: number; completed: boolean; spectator?: boolean };
 export type Response = {
   playerId: string; submitted: boolean; guess: number | null; actual: number | null;
   startedAt: string | null; finished: boolean; points: number; rank: number | null;
@@ -44,6 +44,10 @@ export type Game = {
   id: string; code: string; hostId: string;
   /** False when the host only runs the game (e.g. on a TV) and does not play. */
   hostPlays: boolean;
+  playerSips?: boolean;
+  gameSips?: boolean;
+  /** Host only, one entry per selected occurrence, including repeats. */
+  selectedTasks?: string[];
   meId: string; status: 'lobby' | 'playing' | 'finished';
   expiresAt: string; taskCount: number; players: Player[]; round: Round | null;
   /** Demo only: started from the hidden test page (/test). */
@@ -245,8 +249,8 @@ export function wavelengthStatus(round: Round) {
     question: index == null ? undefined : task.questions?.[index] };
 }
 /** Every task `repeat` times in a random order, without the same task twice in a row when possible (shuffled_tasks). */
-export function shuffledTasks(random = Math.random) {
-  const ids = Object.values(tasks).flatMap(task => Array<string>(Math.max(1, task.repeat ?? 1)).fill(task.id));
+export function shuffledTasks(random = Math.random, selected?: string[]) {
+  const ids = selected ?? Object.values(tasks).flatMap(task => Array<string>(Math.max(1, task.repeat ?? 1)).fill(task.id));
   let order = ids;
   for (let attempt = 0; attempt < 50; attempt++) {
     order = ids.map(id => ({ id, order: random() })).sort((a, b) => a.order - b.order).map(({ id }) => id);
@@ -259,7 +263,7 @@ export function guessQuestion(task: Task, name: string) {
 }
 /** Players who take part in rounds: everyone, except a host who only runs the game. */
 export function participants(game: Game): Player[] {
-  return game.hostPlays === false ? game.players.filter(p => p.id !== game.hostId) : game.players;
+  return game.players.filter(p => !p.spectator && (p.id !== game.hostId || game.hostPlays !== false));
 }
 export function roundTask(round: Round): Task {
   return round.task || tasks[round.taskId];
@@ -277,10 +281,19 @@ export function formatTime(value: number) {
 export function formatAnswer(value: number, task: Task) {
   return (task.answer.step ?? 0.1) >= 1 ? Math.round(value).toLocaleString('nb-NO') : formatTime(value);
 }
-export function roundPhases(taskId: string, task?: Task): Phase[] {
+export function sipsEnabled(game: Pick<Game, 'playerSips' | 'gameSips'>, task: Task) {
+  return (losersDrink(task) ? game.gameSips : game.playerSips) !== false;
+}
+export function taskDescription(task: Task, game: Game) {
+  if (game.gameSips !== false) return task.description;
+  return task.description.replace(/, mindretallet tar 3 slurker\./, '.').replace(/, taperen tar 3 slurker\./, '.')
+    .replace('Høyest taper og tar 5 slurker.', 'Høyest taper.');
+}
+export function roundPhases(taskId: string, task?: Task, game?: Pick<Game, 'playerSips' | 'gameSips'>): Phase[] {
   const definition = task || tasks[taskId];
   // Mim det and Samme bølgelengde have no separate guessing step: the others play along in the performing step.
-  return definition?.kind === 'challenge' && !['mime', 'wavelength'].includes(definition.answer.method)
+  const phases: Phase[] = definition?.kind === 'challenge' && !['mime', 'wavelength'].includes(definition.answer.method)
     ? ['assignment', 'guessing', 'performing', 'reveal', 'sips', 'leaderboard']
     : ['assignment', 'performing', 'reveal', 'sips', 'leaderboard'];
+  return game && definition && !sipsEnabled(game, definition) ? phases.filter(p => p !== 'sips') : phases;
 }

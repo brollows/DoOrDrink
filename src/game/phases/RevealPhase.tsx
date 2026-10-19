@@ -46,7 +46,7 @@ function MatchResults({ state }: { state: State }) {
 
 /** Would you rather: share of votes per option and the player's own pick. */
 function VoteResults({ state }: { state: State }) {
-  const { round, task, myResponse } = state;
+  const { game, round, task, myResponse } = state;
   const counts = [0, 1].map(option => round.responses.filter(q => q.choice === String(option)).length);
   const answered = counts[0] + counts[1];
   const minority = counts[0] === counts[1] ? null : counts[0] < counts[1] ? 0 : 1;
@@ -63,14 +63,14 @@ function VoteResults({ state }: { state: State }) {
               <strong>{percent}%</strong>
             </div>
             <div className="progress-track"><span style={{ width: `${percent}%` }} /></div>
-            <small>{counts[option]} {counts[option] === 1 ? 'stemme' : 'stemmer'}{myResponse?.choice === String(option) && ' · ditt valg'}{minority === option ? ' · drikker' : minority !== null && ' · +3 poeng'}</small>
+            <small>{counts[option]} {counts[option] === 1 ? 'stemme' : 'stemmer'}{myResponse?.choice === String(option) && ' · ditt valg'}{minority === option ? (game.gameSips !== false ? ' · drikker' : '') : minority !== null && ' · +3 poeng'}</small>
           </div>
         );
       })}
     </div>
     <p className="muted vote-summary">
-      {minority === null ? 'Helt likt! Ingen poeng, og ingen drikker for valget sitt.' : 'Flertallet får 3 poeng. Mindretallet tar 3 slurker.'}
-      {missing > 0 && ` ${missing} svarte ikke og drikker også.`}
+      {minority === null ? 'Helt likt! Ingen poeng.' : `Flertallet får 3 poeng.${game.gameSips !== false ? ' Mindretallet tar 3 slurker.' : ''}`}
+      {missing > 0 && ` ${missing} svarte ikke${game.gameSips !== false ? ' og drikker også' : ''}.`}
     </p>
   </>;
 }
@@ -115,7 +115,7 @@ function NumberResults({ state }: { state: State }) {
           <Avatar player={player} small />
           <div className="ranking-name">
             <strong>{player.name}{player.id === game.meId && <span> (deg)</span>}</strong>
-            <span>{response?.drinks ? `Høyest – tar ${sipCount(task)} slurker` : response?.rank === 1 ? 'Nest høyest – vinner!' : response?.choice == null ? 'Valgte ikke' : ''}</span>
+            <span>{response?.choice != null && Number(response.choice) === Number(rows[0]?.response?.choice) ? (game.gameSips !== false ? `Høyest – tar ${sipCount(task)} slurker` : 'Høyest – ute av poengkampen') : response?.rank === 1 ? 'Nest høyest – vinner!' : response?.choice == null ? 'Valgte ikke' : ''}</span>
           </div>
           <span className="points">{response?.choice ?? '–'}<small>+{response?.points ?? 0} poeng</small></span>
         </div>
@@ -159,7 +159,7 @@ export function RevealPhase({ state }: PhaseProps) {
   if (method === 'rps') return <>
     <span className="eyebrow">ØYEBLIKKET ER HER</span>
     <h1>Kampene.</h1>
-    <p className="task-description">Vinnerne får 3 poeng. Taperne tar 3 slurker.</p>
+    <p className="task-description">Vinnerne får 3 poeng.{game.gameSips !== false && ' Taperne tar 3 slurker.'}</p>
     <MatchResults state={state} />
   </>;
   if (method === 'words') return <>

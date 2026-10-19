@@ -20,7 +20,7 @@ The local project is connected to `https://mavqjmobgreyoyuqvquv.supabase.co`. Bo
 
 1. Create a dedicated Supabase project.
 2. Enable **Authentication → Sign In / Providers → Anonymous Sign-Ins**. Players never need to provide an email or password.
-3. Run `supabase/migrations/001_game.sql` in the SQL Editor, then `002_cleanup.sql` and `003`–`011` in numeric order (every file in `supabase/migrations/`). Run each migration once, in order; do not rerun earlier ones on an existing database. An existing database only needs the migrations it does not have yet.
+3. Run `supabase/migrations/001_game.sql` in the SQL Editor, then `002_cleanup.sql` and `003`–`012` in numeric order (every file in `supabase/migrations/`). Run each migration once, in order; do not rerun earlier ones on an existing database. An existing database only needs the migrations it does not have yet. The host menu requires `012_host_settings.sql`; run it before deploying the updated client.
 4. Copy `.env.example` to `.env`, and enter the project's URL and public publishable/anon key. Never put a `service_role` or secret key in a `VITE_` variable.
 5. Restart the development server.
 6. Verify that `public.session_updates` is enabled in the `supabase_realtime` publication. The first migration adds it when the publication exists.
@@ -45,9 +45,12 @@ The service worker caches the app shell, not Supabase data. Online multiplayer r
 
 ## Game rules
 
-- By default the host plays and participates in the random pool. In the lobby the host can turn off **Jeg spiller med** to only run the game, for example on a TV. A non-playing host gets no tasks, guesses, timers, points or sips, is left out of rankings, and sees answer status immediately. The setting is locked once the game starts, and at least two other players are then required. Names can be identical; all decisions use player IDs.
+- Everyone starts as a player. Only the host sees the lobby's **Spectator** checkboxes and may mark any member, including themselves or a separate TV user. Spectators get no tasks, responses, points or sips and are excluded from rankings. The host keeps control even as a spectator. Roles are locked at start; at least two active players are required. Names can be identical; all decisions use player IDs.
+- Two independent lobby switches control **Spillere kan dele ut slurker** (top-three allocations) and **Spillet deler ut slurker** (automatic loser sips). Disabled sip steps disappear from forward/back navigation and the stepper; scoring stays the same. With both off, reveal goes straight to the overall leaderboard. **Bånn i bøtta** remains a drinking challenge: deselect its two occurrences to remove drinking entirely.
+- **Velg oppgaver** opens a keyboard-accessible dialog grouped by challenge/everyone, then by title. Every repeated occurrence has its own checkbox. At least one occurrence is required; selection is locked at start and is shuffled when saved. Each challenge still needs an eligible performer, so selected tasks can fall away after everyone has completed one challenge.
+- The host can **Hopp over runden** at any step, with confirmation. This consumes the current task occurrence and opens the next eligible round. Unrevealed work awards no points or completion; previously revealed points and completion remain. A stale request cannot skip a newer round or step.
 - The host's lobby shows a QR code for `/join/<code>`, which opens **Bli med** with the code filled in.
-- Every game gets all tasks in a random order. Each task is used once, except tasks with `repeat` (Bånn i bøtta, Mim det and Samme bølgelengde appear twice, never back to back). Tasks are either a **challenge** (one player performs, the others guess) or **everyone** (all players take part).
+- Every game defaults to all tasks in a random order; the host may choose a subset. Each task is used once, except tasks with `repeat` (Bånn i bøtta, Mim det and Samme bølgelengde have two selectable occurrences; adjacent repeats are avoided when possible). Tasks are either a **challenge** (one player performs, the others guess) or **everyone** (all players take part).
 - Successfully completing a challenge removes that player from the challenge pool. Declining keeps the player eligible for a later challenge, but prevents them from being redrawn within the same refusal chain. Once every player has completed a challenge, the remaining challenges are skipped while everyone-tasks still run.
 - Completing an individual task awards 5 points; completing a transferred task awards 10. Host advancement without a result awards no completion bonus and does not consume that player's individual turn.
 - The game ends when no task can run anymore, or when the host ends it. Everyone-tasks never mark players as having completed their challenge.
@@ -90,6 +93,12 @@ Private tables cannot be read or written by client roles. The exposed functions 
 Tasks are data-driven in `game_private.tasks.definition`; the field reference is at the top of `005_more_tasks.sql`, with later fields described at the top of `008`–`010`. Methods: `stopwatch`, `manual` (entered by host or performer), `rps`, `choice` (two `options`), `words` (Topp 5), `highest` (Nest mest), `mime` (Mim det) and `wavelength` (Samme bølgelengde, with a `questions` pool). New games include every row in `game_private.tasks` (`repeat` times, default once), so a new would-you-rather question or manual challenge only needs an insert. Add the same definition to `tasks` in `src/model.ts` so the local demo includes it.
 
 ## Validation
+
+The host lobby includes a duration indicator that reacts to player count, selected task occurrences and the two sip switches. `npm run simulate:duration` reproduces the 10/11-player comparison. The model runs 800 seeded Monte Carlo sessions per scenario, reporting p10/p50/p90 minutes. These are planning assumptions, not empirical measurements or confidence intervals. A half-game scenario samples 12 of the 23 occurrences each run. Spectators do not count; completed challenge performers leave the pool as in the actual game.
+
+The per-task assumptions in `src/duration.ts` include reading/setup, simultaneous answers and performance: beer 55/90/155 seconds, choice 20/35/60, mime 65/110/165 (word selection plus up to 120 seconds miming), and Topp 5 70/80/100 (including 60 seconds writing). Wavelength adds 12/20/35 seconds per question, stopping when nobody remains, with an assumed 62% chance of matching each answer. Every round additionally includes time to read reveal and total scores (12/20/35 and 8/13/23 seconds plus a player-count allowance). Sip steps add 10/18/35 seconds for automatic sips or 18/30/55 for allocations. A shared group pace, 93% challenge completion assumption and occasional short interruptions broaden the range. Lobby joining and long breaks are excluded. Tune these assumptions after observing real sessions.
+
+For 10 active players: all tasks with sips **59–78 min** (median 67), without sip steps **47–63 min** (median 54); a random half with sips **31–42 min** (median 35), without **25–35 min** (median 29). The same task pool, including beer, is used in both comparisons. For a fully non-drinking selection, deselect beer too. Do not interpret a faster task choice, such as only would-you-rather rounds, as equivalent to a random half.
 
 ```powershell
 npm test

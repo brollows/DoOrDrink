@@ -4,6 +4,7 @@ import { Avatar } from '../components/Avatar';
 import { joinUrl, QrCode } from '../components/QrCode';
 import { participants, type Game } from '../model';
 import type { Act } from './useGame';
+import { HostSettings } from './HostSettings';
 
 const copiedFeedbackMs = 2000;
 
@@ -46,24 +47,9 @@ function JoinPanel({ code, onError }: { code: string; onError: Props['onError'] 
   );
 }
 
-function HostPlaysToggle({ game, disabled, act }: { game: Game; disabled: boolean; act: Act }) {
-  const hostPlays = game.hostPlays !== false;
-  return (
-    <label className="toggle-row">
-      <span>
-        <strong>Jeg spiller med</strong>
-        <small>{hostPlays ? 'Du får oppgaver og poeng som de andre.' : 'Denne skjermen viser spillet for alle, for eksempel på en TV.'}</small>
-      </span>
-      <input type="checkbox" role="switch" className="switch" checked={hostPlays} disabled={disabled}
-        onChange={event => void act('host_plays', { value: event.target.checked })} />
-    </label>
-  );
-}
-
 /** Waiting room before the game starts: how to join, and who is in. */
 export function Lobby({ game, isHost, busy, offline, act, onError }: Props) {
   const playerCount = participants(game).length;
-  const hostPlays = game.hostPlays !== false;
 
   return (
     <main className="lobby-main">
@@ -77,7 +63,7 @@ export function Lobby({ game, isHost, busy, offline, act, onError }: Props) {
           <div><Users size={20} /><strong>{playerCount}</strong><span>spillere</span></div>
           <div><Trophy size={20} /><strong>1</strong><span>vinner</span></div>
         </div>
-        {isHost && <HostPlaysToggle game={game} disabled={busy || offline} act={act} />}
+        {isHost && <HostSettings game={game} disabled={busy || offline} act={act} />}
         {isHost
           ? <button className="button primary wide" disabled={busy || offline || playerCount < 2} onClick={() => void act('start')}><Play size={19} fill="currentColor" /> Start spillet</button>
           : <div className="waiting"><Hourglass size={19} /> Venter på at verten starter</div>}
@@ -85,14 +71,17 @@ export function Lobby({ game, isHost, busy, offline, act, onError }: Props) {
 
       <section className="players-card">
         <div className="section-title"><h2>Gjengen</h2><span className="pill">{playerCount} spillere</span></div>
+        {isHost && <p className="muted">Huk av de som bare skal se på. Spectators får ikke oppgaver, poeng eller slurker. Du kan også velge deg selv.</p>}
         <div className="player-list">
           {game.players.map(p => (
-            <div className="player-row" key={p.id}>
+            <div className={`player-row ${isHost ? 'host-player-row' : ''}`} key={p.id}>
               <Avatar player={p} />
               <strong>{p.name}{p.id === game.meId && <span className="muted"> (deg)</span>}</strong>
               {p.id === game.hostId
-                ? <span className="host-badge"><Crown size={14} /> {hostPlays ? 'Vert' : 'Vert · spiller ikke'}</span>
-                : <Check className="lime" size={19} />}
+                ? <span className="host-badge"><Crown size={14} /> Vert</span>
+                : !isHost && <Check className="lime" size={19} />}
+              {isHost && <label className="spectator-toggle"><input type="checkbox" checked={Boolean(p.spectator || (p.id === game.hostId && game.hostPlays === false))}
+                disabled={busy || offline} onChange={e => void act('spectator', { playerId: p.id, value: e.target.checked })} />Spectator<span className="sr-only">: {p.name}</span></label>}
             </div>
           ))}
         </div>
