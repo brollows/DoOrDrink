@@ -16,41 +16,37 @@
   .home-footer > span { display: none; }
 
   .game-layout {
-    height: 100dvh;
-    min-height: 0;
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
-    padding: env(safe-area-inset-top) 14px 0;
-    overflow: hidden;
-    gap: 10px;
+    padding: env(safe-area-inset-top) 14px calc(88px + env(safe-area-inset-bottom));
+    gap: 8px;
   }
   .game-layout > * { flex-shrink: 0; }
-  .game-header { padding: 10px 0; min-height: 60px; }
+  .game-header { padding: 6px 0; min-height: 48px; }
   .session-label strong { font-size: 1rem; }
   .self-label { max-width: 130px; }
-  .self-label > span { max-height: 40px; overflow: auto; }
+  .self-label > span { overflow-wrap: anywhere; }
   .demo-bar { margin: 0; padding: 4px 8px; min-height: 40px; }
   .demo-bar select { min-height: 30px; }
   .round-top { margin: 0; min-height: 26px; }
   .round-top > .pill { padding: 5px 8px; }
-  .stepper { margin: 0; min-height: 42px; }
-  .stepper > div { gap: 4px; }
+  .stepper { margin: 0; min-height: 20px; justify-content: flex-start; gap: 5px; align-items: center; font-size: .75rem; color: var(--muted); }
+  .stepper::before { content: 'Steg ' attr(data-step) ' av ' attr(data-total) ' ·'; }
+  .stepper > div { flex: none; gap: 0; }
+  .stepper > div:not(.current), .stepper > div > span { display: none; }
   .stepper small { font-size: .75rem; line-height: 1.1; }
   .round-main {
-    flex: 1;
-    min-height: 0;
-    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-rows: auto;
     gap: 10px;
     align-items: stretch;
   }
   .round-card {
-    min-height: 0;
+    min-height: 280px;
     padding: 18px;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
-    overscroll-behavior-y: contain;
-    container-type: size;
+    overflow: visible;
   }
   .round-card > * { flex-shrink: 0; }
   .round-card h1 { font-size: 2rem; }
@@ -73,7 +69,11 @@
   .large-icon { width: 50px; height: 50px; border-radius: 16px; margin: 0 auto 12px; }
   .round-sidebar:not(:has(.response-status)) { display: none; }
   .round-sidebar > .side-card:not(.response-status) { display: none; }
-  .response-status { margin: 0; padding: 12px 14px; border-radius: 14px; }
+  .response-status { margin: 0; padding: 10px 14px; border-radius: 14px; display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; align-items: center; }
+  .response-status .section-title { gap: 8px; }
+  .response-status .section-title h3, .response-status > .progress-track { display: none; }
+  .response-status .status-details { text-align: right; }
+  .response-status .status-details[open] { grid-column: 1 / -1; text-align: left; }
   .response-status h3 { font-size: .9rem; }
   .progress-track { margin: 10px 0 8px; height: 4px; }
   .response-status > p { margin-top: 0; font-size: .8rem; line-height: 1.4; }
@@ -98,13 +98,8 @@
   .reveal-value strong small { margin-top: 6px; }
   .reveal-value p { line-height: 1.4; }
   .ranking {
-    flex: 1;
-    min-height: 0;
     margin-top: 10px;
-    overflow-y: auto;
-    overscroll-behavior-y: contain;
-    scrollbar-gutter: stable;
-    -webkit-overflow-scrolling: touch;
+    overflow: visible;
   }
   .ranking-row { padding: 11px 0; min-height: 62px; }
   .ranking-name > strong { font-size: .9rem; }
@@ -113,9 +108,9 @@
   .giver-list { margin: 0 0 12px; gap: 7px; }
   .giver { min-height: 44px; padding: 7px 9px; }
   .giver .avatar { width: 28px; height: 28px; }
-  .recipient-list { flex: 1; min-height: 0; margin: 0; display: flex; flex-direction: column; }
+  .recipient-list { margin: 0; display: flex; flex-direction: column; }
   .recipient-list h3 { flex-shrink: 0; margin-bottom: 10px; }
-  .recipient-options { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; }
+  .recipient-options { overflow: visible; }
   .recipient-button { min-height: 50px; padding: 8px 10px; margin-bottom: 8px; }
   .immune-note { margin-top: 12px; line-height: 1.4; }
   .hand-buttons { gap: 8px; margin-top: 14px; }
@@ -158,18 +153,20 @@
   .vote-text { font-size: .9rem; }
   .vote-head strong { font-size: 1.25rem; }
   .vote-option .progress-track { margin: 8px 0 6px; }
-  .host-controls, .player-controls {
-    position: static;
+  .host-controls {
+    position: fixed;
+    left: 0;
     transform: none;
-    width: auto;
-    margin: 0 -14px;
-    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    width: 100%;
+    margin: 0;
+    padding: 8px 14px calc(8px + env(safe-area-inset-bottom));
     min-height: 60px;
   }
   .host-controls .next-button { min-height: 48px; }
   .end-button { min-width: 44px; min-height: 44px; }
-  .player-controls { min-height: 52px; padding-top: 14px; padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
-  .lobby-main { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; grid-template-rows: auto minmax(220px, 1fr); gap: 16px; padding: 4px 0 calc(14px + env(safe-area-inset-bottom)); }
+  .player-controls { display: none; }
+  .game-layout:has(.player-controls), .game-layout.status-lobby, .game-layout.status-finished { padding-bottom: calc(18px + env(safe-area-inset-bottom)); }
+  .lobby-main { grid-template-rows: auto auto; gap: 16px; padding: 4px 0 0; }
   .lobby-intro .eyebrow { margin-bottom: 8px; }
   .lobby-intro h1 { font-size: 2.3rem; }
   .lobby-intro > p { margin-top: 8px; font-size: .9rem; line-height: 1.5; }
@@ -177,9 +174,10 @@
   .join-code span { font-size: 2.3rem; }
   .join-panel { margin-top: 12px; padding: 12px; gap: 14px; border-radius: 16px; }
   .join-panel .join-code { margin-top: 2px; }
-  .join-panel .join-code span { font-size: 1.6rem; letter-spacing: .14em; }
+  .join-panel .join-code span { font-size: clamp(1.15rem,7cqi,1.6rem); letter-spacing: .14em; }
   .join-details > p { display: none; }
-  .qr-code { width: 96px; border-radius: 8px; }
+  .qr-code { max-width: 96px; border-radius: 8px; }
+  .join-panel { grid-template-columns: 96px minmax(0, 1fr); }
   .toggle-row { min-height: 52px; margin-bottom: 12px; padding: 8px 12px; }
   .toggle-row small { font-size: .75rem; }
   .round-summary { margin: 12px 0 14px; }
@@ -187,7 +185,7 @@
   .round-summary svg { width: 16px; }
   .round-summary strong { font-size: 1rem; }
   .players-card { min-height: 0; height: auto; padding: 16px; display: flex; flex-direction: column; }
-  .player-list { min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; margin-top: 10px; }
+  .player-list { overflow: visible; margin-top: 10px; }
   .player-row { padding: 10px 0; }
   .finished-main { flex: 1; min-height: 0; margin: 10px 0 0; padding-bottom: calc(14px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; }
   .finished-main > :not(.ranking) { flex-shrink: 0; }
@@ -201,13 +199,13 @@
   .drink-content > .eyebrow { margin-bottom: 16px; }
   .drink-content p { margin: 18px 0; }
   .modal { max-height: calc(100dvh - 48px); overflow-y: auto; }
-  .game-layout > .error, .game-layout > .offline { max-height: 88px; overflow-y: auto; margin: 0; padding: 10px 12px; }
+  .game-layout > .error, .game-layout > .offline { margin: 0; padding: 10px 12px; }
 }
 
 @media (max-width: 700px) and (max-height: 720px) {
   .game-layout { gap: 7px; }
   .game-header { min-height: 52px; padding: 6px 0; }
-  .stepper { min-height: 36px; }
+  .stepper { min-height: 20px; }
   .round-card { padding: 14px; }
   .round-card h1 { font-size: 1.8rem; }
   .task-description { font-size: .85rem; }
@@ -230,11 +228,3 @@
 }
 
 .ranking:focus-visible, .recipient-options:focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; }
-
-@container (max-height: 350px) {
-  .stopwatch { padding-top: 0; }
-  .timer-value { font-size: 3rem; margin: 8px 0 10px; }
-  .timer-button { min-height: 56px; }
-  .stopwatch > p { margin-top: 10px; }
-  .timer-done { margin-top: 0; }
-}

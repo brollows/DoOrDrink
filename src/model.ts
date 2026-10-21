@@ -59,7 +59,7 @@ export type Task = {
   kind: 'challenge' | 'everyone';
   /** How many times the task appears in a game (default 1). */
   repeat?: number;
-  /** allocate (default): the round's top three hand out sips. losers: losers drink automatically. */
+  /** allocate (default): up to three top scorers hand out sips, scaled to active players. */
   sips?: 'allocate' | 'losers';
   /** How many sips losers drink (default 3). */
   sipCount?: number;
@@ -258,6 +258,16 @@ export function shuffledTasks(random = Math.random, selected?: string[]) {
   }
   return order;
 }
+/** The shuffled order is fixed at start: one challenge slot per active player at most. */
+export function plannedTasks(order: string[], playerCount: number) {
+  let challenges = 0;
+  return order.filter(id => tasks[id].kind === 'everyone' || ++challenges <= playerCount);
+}
+
+/** Leave at least one non-immune player who will not receive sips. */
+export function sipGiverCount(playerCount: number) {
+  return playerCount < 3 ? 0 : playerCount < 5 ? 1 : playerCount < 7 ? 2 : 3;
+}
 export function guessQuestion(task: Task, name: string) {
   return task.guessQuestion?.replace('{name}', name) || `Oppgi ditt tips i ${task.answer.unit}.`;
 }
@@ -293,7 +303,7 @@ export function roundPhases(taskId: string, task?: Task, game?: Pick<Game, 'play
   const definition = task || tasks[taskId];
   // Mim det and Samme bølgelengde have no separate guessing step: the others play along in the performing step.
   const phases: Phase[] = definition?.kind === 'challenge' && !['mime', 'wavelength'].includes(definition.answer.method)
-    ? ['assignment', 'guessing', 'performing', 'reveal', 'sips', 'leaderboard']
-    : ['assignment', 'performing', 'reveal', 'sips', 'leaderboard'];
+    ? ['assignment', 'guessing', 'performing', 'reveal', 'sips']
+    : ['assignment', 'performing', 'reveal', 'sips'];
   return game && definition && !sipsEnabled(game, definition) ? phases.filter(p => p !== 'sips') : phases;
 }

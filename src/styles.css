@@ -13,11 +13,19 @@
 .home-footer a{display:inline-flex;align-items:center;min-height:44px}
 @media(hover:hover){.primary:hover:not(:disabled){background:#d3fa8a}.secondary:hover:not(:disabled),.back-button:hover:not(:disabled){border-color:#4a4e5c;background:#2c2f3a}.tabs button:not(.active):hover,.end-button:hover:not(:disabled),.modal-close:hover,.info-page>.text-link:hover{color:var(--text)}.join-code:hover{border-color:#c4f36b66}.resume:hover{background:#c4f36b14}}
 
-.join-panel{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:24px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;margin-top:30px}
+.join-panel{display:grid;grid-template-columns:minmax(96px,.85fr) minmax(0,1.15fr);align-items:center;gap:20px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;margin-top:30px;container-type:inline-size}
 .join-panel .join-code{background:none;border:0;border-radius:10px;padding:0;margin:10px 0 0;gap:12px;min-height:44px}
-.join-panel .join-code span{font-size:clamp(1.9rem,3.2vw,2.8rem)}
+.join-panel .join-code span{font-size:clamp(1.15rem,6.8cqi,2.4rem);letter-spacing:.14em;min-width:0}
+.join-details{min-width:0}
+.join-details>.eyebrow{font-size:.65rem;letter-spacing:.1em;overflow-wrap:anywhere}
+.join-code svg{flex-shrink:0}
 .join-details>p{font-size:.85rem;line-height:1.5;margin-top:8px}
-.qr-code{display:block;width:clamp(120px,12.5vw,240px);height:auto;background:#fff;fill:var(--bg);border-radius:12px}
+.round-progress{display:grid;gap:4px}
+.round-remaining{font-size:.75rem;color:var(--muted)}
+.status-details{font-size:.85rem;color:var(--muted)}
+.status-details summary{cursor:pointer;min-height:28px;padding:5px 0}
+.status-details summary:focus-visible{outline:2px solid var(--lime);outline-offset:3px}
+.qr-code{display:block;width:100%;max-width:180px;height:auto;background:#fff;fill:var(--bg);border-radius:12px}
 .toggle-row{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:64px;margin-bottom:18px;padding:12px 16px;background:var(--panel);border:1px solid var(--line);border-radius:14px;cursor:pointer}
 .toggle-row strong{display:block;font-size:.95rem}
 .toggle-row small{display:block;color:var(--muted);font-size:.8rem;line-height:1.4;margin-top:3px}

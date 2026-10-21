@@ -46,11 +46,18 @@ test('local demo mirrors both sip switches and preserves score when skipping aft
     assert.equal(game.round!.responses.some(q => q.drinks), gameSips);
     const scores = game.players.map(p => p.score);
     assert.ok(scores.some(score => score > 0));
-    game = act(game, 'next'); assert.equal(game.round!.phase, gameSips ? 'sips' : 'leaderboard');
-    game = act(game, 'back'); assert.equal(game.round!.phase, 'reveal');
-    game = act(game, 'skip_round'); assert.deepEqual(game.players.map(p => p.score), scores);
+    game = act(game, 'next');
+    // Without a sips step, the reveal is the last step and the next round starts.
+    if (gameSips) {
+      assert.equal(game.round!.phase, 'sips');
+      game = act(game, 'back'); assert.equal(game.round!.phase, 'reveal');
+      game = act(game, 'skip_round');
+    }
+    assert.deepEqual(game.players.map(p => p.score), scores);
+    assert.equal(game.round!.taskId, 'ten_seconds'); assert.equal(game.round!.phase, 'assignment');
     game = act(game, 'next'); game = act(game, 'next'); game = act(game, 'next');
-    assert.equal(game.round!.phase, playerSips ? 'sips' : 'leaderboard');
+    if (playerSips) assert.equal(game.round!.phase, 'sips');
+    else assert.equal(game.status, 'finished');
     assert.equal(roundPhases('ten_seconds', undefined, game).includes('sips'), playerSips);
     assert.throws(() => act(game, 'settings', { playerSips: true }), /før spillet/);
   }

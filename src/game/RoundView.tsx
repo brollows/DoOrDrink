@@ -5,7 +5,6 @@ import type { ConfirmKind } from './ConfirmDialog';
 import { HostControls, PlayerControls } from './GameControls';
 import { AssignmentPhase } from './phases/AssignmentPhase';
 import { GuessingPhase } from './phases/GuessingPhase';
-import { LeaderboardPhase } from './phases/LeaderboardPhase';
 import { PerformingPhase } from './phases/PerformingPhase';
 import { RevealPhase } from './phases/RevealPhase';
 import { SipsPhase } from './phases/SipsPhase';
@@ -20,7 +19,8 @@ const phaseViews: Record<Phase, ComponentType<PhaseProps>> = {
   performing: PerformingPhase,
   reveal: RevealPhase,
   sips: SipsPhase,
-  leaderboard: LeaderboardPhase,
+  // Compatibility for a game already at the old phase when this version loads.
+  leaderboard: SipsPhase,
 };
 
 type Props = {
@@ -35,9 +35,9 @@ type Props = {
 function Stepper({ state }: { state: RoundState }) {
   const { round, task } = state;
   const phases = roundPhases(round.taskId, task, state.game);
-  const currentIndex = phases.indexOf(round.phase);
+  const currentIndex = round.phase === 'leaderboard' ? phases.length - 1 : phases.indexOf(round.phase);
   return (
-    <nav className="stepper" aria-label="Spillsteg">
+    <nav className="stepper" aria-label="Spillsteg" data-step={currentIndex + 1} data-total={phases.length}>
       {phases.map((phase, index) => (
         <div key={phase} className={index === currentIndex ? 'current' : index < currentIndex ? 'complete' : ''}>
           <span>{index + 1}</span><small>{phaseNames[phase]}</small>
@@ -54,7 +54,10 @@ export function RoundView({ state, busy, offline, act, refresh, onConfirm }: Pro
 
   return <>
     <div className="round-top">
-      <span className="eyebrow">RUNDE {round.number} / {game.taskCount}</span>
+      <div className="round-progress">
+        <span className="eyebrow">RUNDE {round.number} AV {game.taskCount}</span>
+        <span className="round-remaining">{round.number >= game.taskCount ? 'Siste runde!' : `${game.taskCount - round.number} runder igjen etter denne`}</span>
+      </div>
       <span className="pill">{task.kind === 'everyone' ? <><Users size={14} />Alle spiller</> : <><Dices size={14} />Én tar utfordringen</>}</span>
     </div>
     <Stepper state={state} />

@@ -16,13 +16,13 @@ function ResponseStatus({ state }: { state: RoundState }) {
         <strong className="lime">{readyCount}/{readyTotal}</strong>
       </div>
       <div className="progress-track"><span style={{ width: `${readyTotal ? readyCount / readyTotal * 100 : 100}%` }} /></div>
-      {ready ? <p className="status-ready"><Check size={16} /> Alle er klare</p> : waitingOn.length > 0 && <>
-        <p className="muted">Venter på</p>
+      {ready ? <p className="status-ready"><Check size={16} /> Alle er klare</p> : waitingOn.length > 0 && <details className="status-details">
+        <summary>Venter på {waitingOn.length} {waitingOn.length === 1 ? 'spiller' : 'spillere'}</summary>
         <div className="missing-players">
           {waitingOn.slice(0, visibleWaitingCount).map(p => <span key={p.id}><Avatar player={p} small />{p.name}</span>)}
         </div>
         {remaining > visibleWaitingCount && <p className="muted">og {remaining - visibleWaitingCount} til</p>}
-      </>}
+      </details>}
     </div>
   );
 }

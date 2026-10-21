@@ -21,7 +21,7 @@ function Rules() {
       <li>I en utfordring får en tilfeldig spiller oppgaven. Ta den for 5 poeng, eller send den videre. Den som tar en videresendt oppgave får 10 poeng.</li>
       <li>De andre gjetter før oppgaven utføres. Den som har oppgaven tar tiden eller svarer selv i appen.</li>
       <li>Fasiten avslører resultatene. Nærmest får mest poeng. Like resultater deler den beste plasseringen.</li>
-      <li>De tre med flest poeng i runden får dele ut 3 slurker hver. De er immune. Førstemann til mølla velger mottaker.</li>
+      <li>De beste i runden deler ut 3 slurker hver til ulike mottakere og er selv immune. Med 2 spillere deler ingen ut, med 3–4 deler én ut, med 5–6 deler to ut, og med 7 eller flere deler tre ut. Tilskuere teller ikke. I spill der taperne drikker automatisk, deles ingen ekstra slurker ut.</li>
       <li>På «Perfekte 10» starter og stopper alle selv. Resultatet skjules til fasiten. 20 sekunder eller ingen fullføring gir 0 poeng.</li>
       <li>I «Stein, saks, papir» får alle en tilfeldig motstander, eller maskinen ved oddetall. Uavgjort betyr nytt valg. Vinneren får 3 poeng, og taperen tar 3 slurker.</li>
       <li>I «Topp 5» har alle 60 sekunder på å skrive 3 enkeltord om temaet. De fem ordene flest skrev vises, og du får 2 poeng for hvert av dine ord på lista. Store og små bokstaver spiller ingen rolle, og for ord på 7 bokstaver eller mer teller én skrivefeil som samme ord.</li>
@@ -31,8 +31,8 @@ function Rules() {
       <li>I «Ville du helst» velger alle ett av to alternativer. Flertallet får 3 poeng, og de i mindretall tar 3 slurker. Ved helt likt skjer ingenting.</li>
       <li>Verten styrer stegene og kan gå videre før alle er klare. Manglende svar gir 0 poeng.</li>
     </ol>
-    <p className="muted">Hver spiller tar maks én utfordring. Når alle har tatt sin, hoppes resten av utfordringene over, mens oppgavene for alle fortsetter. «Bånn i bøtta», «Mim det!» og «Samme bølgelengde» kan komme to ganger, med en ny spiller hver gang. Spillet slutter når oppgavene er brukt opp eller verten avslutter. Spilldata slettes innen 24 timer.</p>
-    <p className="muted">Ved lik plassering rundt topp tre får de som ble med først dele ut. Hvis alle tilgjengelige mottakere er valgt eller immune, kan verten gå videre.</p>
+    <p className="muted">Ved start trekkes opptil én utfordringsrunde per aktiv spiller, begrenset av utfordringene som finnes. Alle fellesspill beholdes. Hver spiller fullfører maks én utfordring. «Bånn i bøtta», «Mim det!» og «Samme bølgelengde» kan trekkes to ganger, med en ny spiller hver gang. Rundevisningen viser hvor mange runder som gjenstår. Sammenlagt poengtavle vises når spillet er ferdig eller verten avslutter tidlig. Spilldata slettes innen 24 timer.</p>
+    <p className="muted">Ved lik poengsum rundt grensen for å dele ut slurker får de som ble med først dele ut. Bare spillere med poeng i runden kan dele ut.</p>
     <p className="muted">Poeng: sisteplass får 1. Opp til tredjeplass øker det med 1 per plass; andreplass får 2 mer enn tredjeplass og førsteplass får 3 mer enn andreplass. Ved fem som gjetter: 1–2–3–5–8.</p>
   </>;
 }

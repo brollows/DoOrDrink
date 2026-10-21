@@ -3,6 +3,8 @@ import {
   mimeMatch,
   normalizeWord,
   participants,
+  plannedTasks,
+  sipGiverCount,
   rankingPoints,
   roundPhases,
   shuffledTasks,
@@ -84,6 +86,7 @@ export function createDemo(name: string, options: { tasks?: string[]; test?: boo
 /** What one player is allowed to see, like game_state on the server. */
 export function demoState(meId?: string): Game {
   const game = structuredClone(read());
+  if (game.status === 'lobby') game.taskCount = plannedTasks(game.taskOrder, participants(game).length).length;
   if (meId && game.players.some((p) => p.id === meId)) game.meId = meId;
   game.selectedTasks = game.meId === game.hostId ? [...game.taskOrder] : undefined;
   const round = game.round;
@@ -346,8 +349,8 @@ function award(game: DemoGame) {
       ? []
       : [...r.responses]
           .filter((q) => q.points > 0)
-          .sort((a, b) => b.points - a.points)
-          .slice(0, 3)
+          .sort((a, b) => b.points - a.points || game.players.findIndex(p => p.id === a.playerId) - game.players.findIndex(p => p.id === b.playerId))
+          .slice(0, sipGiverCount(participants(game).length))
           .map((q) => q.playerId);
   game.players.forEach((p) => {
     p.score += r.responses.find((q) => q.playerId === p.id)?.points ?? 0;
@@ -402,6 +405,8 @@ export function demoAction(
   if (action === "start" && game.status === "lobby") {
     if (participants(game).length < 2)
       throw new Error("Dere må være minst to spillere.");
+    game.taskOrder = plannedTasks(game.taskOrder, participants(game).length);
+    game.taskCount = game.taskOrder.length;
     nextRound(game);
   } else if (action === "host_plays") {
     if (game.status !== "lobby")
@@ -604,11 +609,12 @@ export function demoAction(
       r.allocations.push({ giverId: meId, recipientId: target });
     } else if (action === "next" || action === "back") {
       const phases = roundPhases(r.taskId, task, game);
-      const index = phases.indexOf(r.phase);
+      // A round still at the old leaderboard step counts as finished.
+      const index = phases.includes(r.phase) ? phases.indexOf(r.phase) : phases.length;
       if (action === "back") {
         if (!index) throw new Error("Dette er første steg.");
         r.phase = phases[index - 1];
-      } else if (r.phase === "leaderboard") nextRound(game);
+      } else if (index >= phases.length - 1) nextRound(game);
       else if (r.phase === "assignment" && !r.accepted) {
         award(game);
         nextRound(game);

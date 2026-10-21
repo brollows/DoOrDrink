@@ -1,5 +1,5 @@
 import { ChevronLeft, Flag, Hourglass, SkipForward } from 'lucide-react';
-import { phaseNames } from '../model';
+import { phaseNames, roundPhases } from '../model';
 import type { ConfirmKind } from './ConfirmDialog';
 import type { RoundState } from './roundState';
 import type { Act } from './useGame';
@@ -14,11 +14,18 @@ type Props = {
 
 /** Bottom bar for the host: step back, go forward and end the game. */
 export function HostControls({ state, busy, offline, act, onConfirm }: Props) {
-  const { round, ready, readyCount, readyTotal, canMonitor } = state;
+  const { game, round, task, ready, readyCount, readyTotal, canMonitor } = state;
+  // The last step (sips, or the reveal when sips are off) leads to the next round.
+  const phases = roundPhases(round.taskId, task, game);
+  const lastStep = !phases.includes(round.phase) || round.phase === phases[phases.length - 1];
   const disabled = busy || offline;
   // Moving on before everyone is done needs a confirmation.
   const next = () => { if (!ready && !round.awarded) onConfirm('next'); else void act('next'); };
-  const nextLabel = round.phase === 'leaderboard' ? 'Neste runde' : round.phase === 'assignment' && !round.accepted ? 'Hopp over' : 'Gå videre';
+  const nextLabel = lastStep
+    ? round.number >= game.taskCount ? 'Se sluttresultatet' : 'Neste runde'
+    : round.phase === 'assignment' && !round.accepted ? 'Hopp over'
+    : round.phase === 'performing' ? 'Vis fasiten'
+    : round.phase === 'reveal' ? 'Til slurkene' : 'Gå videre';
 
   return (
     <footer className="host-controls">
