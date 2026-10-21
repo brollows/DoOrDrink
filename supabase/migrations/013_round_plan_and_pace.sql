@@ -3,7 +3,7 @@
 -- and the last step of a round (sips, or the reveal when sips are turned off) starts the next round.
 -- Existing games retain their plan; new starts cap challenge slots.
 
-create function game_private.plan_tasks(p_order text[],p_players integer) returns text[]
+create or replace function game_private.plan_tasks(p_order text[],p_players integer) returns text[]
 language sql stable security definer set search_path = '' as $$
   select coalesce(array_agg(task order by position),'{}'::text[]) from (
     select o.task,o.position,t.definition->>'kind' as kind,
