@@ -67,7 +67,7 @@ function ZombieRound(props: PhaseProps) {
         </>}
       </> : <>
         <h2>{myResponse ? 'Du lever fortsatt!' : 'Zombiene jakter'}</h2>
-        <p className="task-description">Zombiene velger hvem de biter. Ikke se på skjermen deres!</p>
+        <p className="task-description">Zombiene velger hvem de biter.</p>
       </>}
       <div className="zombie-list" role="region" aria-label="Zombiene" tabIndex={0}>
         {zombies.map(q => (
