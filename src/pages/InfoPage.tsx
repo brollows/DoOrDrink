@@ -22,7 +22,7 @@ function Rules() {
       <li>De andre gjetter før oppgaven utføres. Den som har oppgaven tar tiden eller svarer selv i appen.</li>
       <li>Fasiten avslører resultatene. Nærmest får mest poeng. Like resultater deler den beste plasseringen.</li>
       <li>De beste i runden deler ut 3 slurker hver til ulike mottakere og er selv immune. Med 2 spillere deler ingen ut, med 3–4 deler én ut, med 5–6 deler to ut, og med 7 eller flere deler tre ut. Tilskuere teller ikke. I spill der taperne drikker automatisk, deles ingen ekstra slurker ut.</li>
-      <li>På «Perfekte 10» starter og stopper alle selv. Resultatet skjules til fasiten. 20 sekunder eller ingen fullføring gir 0 poeng.</li>
+      <li>På «Perfekte 10» starter og stopper alle selv. Tiden forsvinner etter 3 sekunder. Resultatet skjules til fasiten. 20 sekunder eller ingen fullføring gir 0 poeng.</li>
       <li>I «Stein, saks, papir» får alle en tilfeldig motstander, eller maskinen ved oddetall. Uavgjort betyr nytt valg. Vinneren får 3 poeng, og taperen tar 3 slurker.</li>
       <li>I «Topp 5» har alle 60 sekunder på å skrive 3 enkeltord om temaet. De fem ordene flest skrev vises, og du får 2 poeng for hvert av dine ord på lista. Store og små bokstaver spiller ingen rolle, og for ord på 7 bokstaver eller mer teller én skrivefeil som samme ord.</li>
       <li>I «Mim det!» velger den som har oppgaven ett ord og mimer det. De andre har 120 sekunder på å gjette, så mange ganger de vil. Med 60 sekunder igjen vises antall bokstaver, og med 30 sekunder igjen første bokstav. Raskest får mest poeng, og den som mimer får 5 poeng (10 hvis oppgaven ble sendt videre).</li>

@@ -124,7 +124,7 @@ export const tasks: Record<string, Task> = {
   beer: { id: 'beer', title: 'Bånn i bøtta', description: 'Drikk en øl så fort du kan. De andre gjetter hvor mange sekunder du bruker.',
     guessQuestion: 'Hvor mange sekunder bruker {name} på å drikke ølen?',
     kind: 'challenge', repeat: 2, answer: { method: 'stopwatch', unit: 'sekunder', min: 0, max: 60 } },
-  ten_seconds: { id: 'ten_seconds', title: 'Perfekte 10', description: 'Start din egen timer. Stopp så nær 10 sekunder som mulig. Tiden forsvinner når du stopper.',
+  ten_seconds: { id: 'ten_seconds', title: 'Perfekte 10', description: 'Start din egen timer. Stopp så nær 10 sekunder som mulig. Tiden forsvinner etter 3 sekunder.',
     kind: 'everyone', answer: { method: 'stopwatch', unit: 'sekunder', min: 0, max: 20, target: 10, timeout: 20 } },
   height: { id: 'height', title: 'Kjenn kompisen', description: 'Svar ærlig i appen, og ikke si svaret høyt. De andre gjetter.',
     question: 'Hvor høy er du?', guessQuestion: 'Hvor høy er {name}?',

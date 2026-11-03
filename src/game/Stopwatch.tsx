@@ -4,6 +4,8 @@ import { formatTime, roundTask, type Game, type Response } from '../model';
 import type { Act } from './useGame';
 
 const tickInterval = 25;
+/** Seconds before the running time fades out on group stopwatch tasks. */
+const hideAfter = 3;
 
 type Props = { game: Game; response: Response; busy: boolean; act: Act };
 
@@ -76,16 +78,18 @@ export function Stopwatch({ game, response, busy, act }: Props) {
   );
 
   const running = localStart !== null;
+  // On group tasks (Perfekte 10) the time fades out after a few seconds, so players must count in their head.
+  const hidden = task.kind === 'everyone' && running && elapsed >= hideAfter;
   return (
     <div className="stopwatch">
       <span className="eyebrow">{task.kind === 'everyone' ? 'SIKT PÅ 10,00 SEKUNDER' : 'DIN STOPPEKLOKKE'}</span>
-      <div className={`timer-value ${running ? 'running' : ''}`}>{formatTime(elapsed)}<span>sekunder</span></div>
+      <div className={`timer-value ${running ? 'running' : ''} ${hidden ? 'faded' : ''}`} aria-hidden={hidden || undefined}>{formatTime(elapsed)}<span>sekunder</span></div>
       <button className={`button timer-button ${running ? 'stop' : 'primary'}`} disabled={busy || round.awarded}
         onClick={() => running ? void stop(Math.max(0, (Date.now() - localStart) / 1000)) : void start()}>
         {running ? <span className="stop-square" /> : <Play size={22} fill="currentColor" />}
         {running ? 'Stopp' : 'Start timer'}
       </button>
-      <p className="muted">{task.kind === 'everyone' ? 'Timeren forsvinner når du stopper. Etter 20 sekunder blir det 0 poeng.' : 'Trykk start når du begynner, og stopp når du er ferdig.'}</p>
+      <p className="muted">{task.kind === 'everyone' ? 'Tiden forsvinner etter 3 sekunder. Etter 20 sekunder blir det 0 poeng.' : 'Trykk start når du begynner, og stopp når du er ferdig.'}</p>
       {round.awarded && <p className="muted">Runden er allerede avsluttet. Resultatet er låst.</p>}
     </div>
   );
