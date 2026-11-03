@@ -19,11 +19,19 @@ export type Response = {
    * until its result is shown.
    */
   answers?: (string | null)[] | null;
+  /** Zombie: null while human, 0 for the first zombie, n when bitten in bite round n. */
+  zombieRound?: number | null;
+  /** Zombie: the zombie who bit this player. */
+  bittenBy?: string | null;
 };
 export type TopWord = { word: string; count: number; players: string[] };
 export type Round = {
   id: string; number: number; taskId: string; task?: Task; phase: Phase; performerId: string | null;
   accepted: boolean; transferred: boolean; awarded: boolean; actual: number | null;
+  /** How many times the challenge was passed on; each one adds a point to the completion bonus. */
+  transfers?: number;
+  /** Zombie: the bite round in progress (1-based), null before the first zombie is drawn. */
+  zombieStep?: number | null;
   /** Topp 5: seconds left to write, counted by the server so every phone agrees. */
   secondsLeft?: number | null;
   /** Topp 5: the most written words after the reveal. */
@@ -72,7 +80,7 @@ export type Task = {
   /** Samme bølgelengde: the question pool; each round uses answer.questions of them. */
   questions?: WavelengthQuestion[];
   answer: {
-    method: 'stopwatch' | 'manual' | 'rps' | 'choice' | 'words' | 'highest' | 'mime' | 'wavelength';
+    method: 'stopwatch' | 'manual' | 'rps' | 'choice' | 'words' | 'highest' | 'mime' | 'wavelength' | 'zombie';
     /** Samme bølgelengde: questions per round. */
     questions?: number; enteredBy?: 'host' | 'performer';
     /** Topp 5: how many words each player may write. */
@@ -151,8 +159,8 @@ export const tasks: Record<string, Task> = {
   top5_vors: topFive('top5_vors', 'Vorspiel', 'Ting man finner på et vorspiel'),
   top5_food: topFive('top5_food', 'Fyllemat', 'Fyllemat'),
   top5_regret: topFive('top5_regret', 'Dagen derpå', 'Ting man angrer på dagen derpå'),
-  second_highest: { id: 'second_highest', title: 'Nest mest', description: 'Velg et tall fra 0 til 100. Høyest taper og tar 5 slurker. Nest høyest vinner.',
-    kind: 'everyone', sips: 'losers', sipCount: 5, answer: { method: 'highest', unit: '', min: 0, max: 100, step: 1 } },
+  zombie: { id: 'zombie', title: 'Zombie', description: 'Én blir trukket ut som zombie. Hver runde biter hver zombie ett menneske. Jo lenger du overlever, desto flere poeng. Alle zombier tar 2 slurker.',
+    kind: 'everyone', sips: 'losers', sipCount: 2, answer: { method: 'zombie', unit: '', min: 0, max: 0 } },
   wyr_naked: wouldYouRather('wyr_naked', ['Hatt en kjæreste som gråter hver gang du kler av deg', 'Hatt en kjæreste som ler hver gang du kler av deg']),
   wyr_honest: wouldYouRather('wyr_honest', ['Måttet si høyt alt du tenker resten av kvelden', 'Ikke fått si et eneste ord resten av kvelden']),
   wyr_history: wouldYouRather('wyr_history', ['Fått nettleserhistorikken din vist på storskjerm', 'Fått alle meldingene dine lest høyt for familien']),
@@ -285,6 +293,12 @@ export const phaseNames: Record<Phase, string> = {
 export function rankingPoints(rank: number) {
   return Math.max(11 - rank, 1);
 }
+/** Completing a challenge: 5 points, +1 for every time it was passed on, at most 10 (completion_points). */
+export function completionPoints(transfers = 0) {
+  return Math.min(5 + transfers, 10);
+}
+/** Zombie: seconds the phones count down per bite round. The server allows one more. */
+export const zombieSeconds = 15;
 export function formatTime(value: number) {
   return value.toLocaleString('nb-NO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -298,7 +312,7 @@ export function sipsEnabled(game: Pick<Game, 'playerSips' | 'gameSips'>, task: T
 export function taskDescription(task: Task, game: Game) {
   if (game.gameSips !== false) return task.description;
   return task.description.replace(/, mindretallet tar 3 slurker\./, '.').replace(/, taperen tar 3 slurker\./, '.')
-    .replace('Høyest taper og tar 5 slurker.', 'Høyest taper.');
+    .replace('Høyest taper og tar 5 slurker.', 'Høyest taper.').replace(' Alle zombier tar 2 slurker.', '');
 }
 export function roundPhases(taskId: string, task?: Task, game?: Pick<Game, 'playerSips' | 'gameSips'>): Phase[] {
   const definition = task || tasks[taskId];

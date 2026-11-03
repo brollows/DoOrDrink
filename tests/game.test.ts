@@ -2,7 +2,7 @@ import { test, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
-import { mimeMatch, mimeSuggestions, normalizeWord, rankingPoints, sameWord, shuffledTasks, plannedTasks, sipGiverCount, tasks as taskDefinitions } from '../src/model';
+import { completionPoints, mimeMatch, mimeSuggestions, normalizeWord, rankingPoints, sameWord, shuffledTasks, plannedTasks, sipGiverCount, tasks as taskDefinitions } from '../src/model';
 import { allTaskIds, simulateDuration, taskTiming } from '../src/duration';
 
 const db = new PGlite();
@@ -34,7 +34,7 @@ before(async () => {
   await db.exec(`create role anon; create role authenticated; create schema auth;
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.user_id',true),'')::uuid$$;`);
   // 002 schedules cleanup with pg_cron, which PGlite does not provide.
-  for (const migration of ['001_game.sql', '003_host_plays.sql', '004_sips_before_leaderboard.sql', '005_more_tasks.sql', '006_would_you_rather_points.sql', '007_more_challenges.sql', '008_top_five_and_second_highest.sql', '009_mime.sql', '010_wavelength.sql', '011_stricter_typos.sql', '012_host_settings.sql', '013_round_plan_and_pace.sql', '014_ten_seconds_fade.sql', '015_capped_position_points.sql'])
+  for (const migration of ['001_game.sql', '003_host_plays.sql', '004_sips_before_leaderboard.sql', '005_more_tasks.sql', '006_would_you_rather_points.sql', '007_more_challenges.sql', '008_top_five_and_second_highest.sql', '009_mime.sql', '010_wavelength.sql', '011_stricter_typos.sql', '012_host_settings.sql', '013_round_plan_and_pace.sql', '014_ten_seconds_fade.sql', '015_capped_position_points.sql', '016_zombie_and_transfer_bonus.sql'])
     await db.exec(await readFile(new URL(`../supabase/migrations/${migration}`, import.meta.url), 'utf8'));
 });
 after(async () => { await db.close(); });
@@ -258,7 +258,7 @@ test('IDs allow duplicate names, rejoining restores identity, strangers cannot r
   await assert.rejects(() => rpc('join_game', [game.code, 'Late']), /har startet/);
 });
 
-test('declining moves the task once per candidate and awards takeover bonus; secrets stay private', async () => {
+test('declining moves the task once per candidate and adds 1 point per transfer; secrets stay private', async () => {
   let game = await create();
   game = await act(game, 'start');
   const original = game.round.performerId;
@@ -284,7 +284,7 @@ test('declining moves the task once per candidate and awards takeover bonus; sec
   await identity(0); game = await act(game, 'next');
   assert.equal(game.round.actual, 70);
   assert.equal(game.round.responses.find(q => q.playerId === guessers[0].id)!.rank, 1);
-  assert.equal(game.round.responses.find(q => q.playerId === performer)!.points, 10);
+  assert.equal(game.round.responses.find(q => q.playerId === performer)!.points, 6, 'passed on once: 5 + 1');
   assert.equal(game.players.find(p => p.id === performer)!.completed, true);
   assert.equal(game.players.find(p => p.id === original)!.completed, false);
   const scores = game.players.map(p => p.score);
@@ -489,7 +489,7 @@ async function playChallenge(game: State, actual: number) {
 
 test('the lobby pool contains every task repeat in random order without adjacent duplicates', async () => {
   const orders = new Set<string>();
-  const tasks = await db.query<{ id: string; repeat: number | null }>("select id,(definition->>'repeat')::integer as repeat from game_private.tasks");
+  const tasks = await db.query<{ id: string; repeat: number | null }>("select id,(definition->>'repeat')::integer as repeat from game_private.tasks where not coalesce((definition->>'retired')::boolean,false)");
   const expected = tasks.rows.flatMap(t => Array<string>(t.repeat ?? 1).fill(t.id)).sort();
   assert.equal(expected.filter(id => id === 'beer').length, 2);
   assert.equal(expected.filter(id => id === 'mime').length, 2);
@@ -778,7 +778,7 @@ test('Mim det: one secret word, server-timed hints, fastest correct guess wins, 
   assert.ok(game.players.find(p => p.id === performer)!.completed);
 });
 
-test('Mim det: short words must match exactly, a passed-on task gives 10, and not starting gives no points', async () => {
+test('Mim det: short words must match exactly, a passed-on task gives 6, and not starting gives no points', async () => {
   assert.equal(mimeMatch(normalizeWord('Sol'), normalizeWord('Sel')), false);
   assert.equal(mimeMatch(normalizeWord('17. mai'), normalizeWord('17.mai')), true);
   assert.deepEqual(mimeSuggestions('round-a'), mimeSuggestions('round-a'), 'suggestions stay the same for a round');
@@ -798,7 +798,7 @@ test('Mim det: short words must match exactly, a passed-on task gives 10, and no
   game = await act(game, 'mime_guess', { value: 'SEL' });
   assert.equal(game.round.responses.find(q => q.playerId === guesser)!.finished, true);
   await identity(0); game = await act(game, 'next');
-  assert.equal(game.round.responses.find(q => q.playerId === next)!.points, 10);
+  assert.equal(game.round.responses.find(q => q.playerId === next)!.points, 6);
 
   game = await create(3, ['mime']);
   game = await act(game, 'start');
@@ -890,4 +890,73 @@ test('Samme bølgelengde: the second round of a game gets five other questions',
   const second = game.round.wlQuestions!;
   assert.equal(second.length, 5);
   assert.ok(second.every(i => !first.includes(i)), 'no question is used twice in one game');
+});
+
+test('completion bonus is 5, +1 per transfer, at most 10, on the server too', async () => {
+  const expected = [5, 6, 7, 8, 9, 10, 10, 10];
+  assert.deepEqual(expected.map((_, i) => completionPoints(i)), expected);
+  const result = await db.query<{ points: number }>('select game_private.completion_points(p) as points from generate_series(0,7) p order by p');
+  assert.deepEqual(result.rows.map(r => r.points), expected);
+});
+
+type ZombieResponse = State['round']['responses'][number] & { zombieRound: number | null; bittenBy: string | null };
+const zombieResponses = (game: State) => game.round.responses as ZombieResponse[];
+
+test('Zombie: every zombie bites one human per round, picks stay secret from humans, the game stops on its own', async () => {
+  let game = await create(6, ['zombie']);
+  game = await act(game, 'start');
+  assert.equal(game.round.taskId, 'zombie');
+  await assert.rejects(() => act(game, 'decline'), /kan ikke/);
+  game = await act(game, 'next');
+  assert.equal(game.round.phase, 'performing');
+  const first = zombieResponses(game).find(q => q.zombieRound === 0)!;
+  assert.ok(first, 'one player is drawn as the first zombie');
+  assert.equal(game.round.performerId, first.playerId);
+  const humanIds = () => zombieResponses(game).filter(q => q.zombieRound === null).map(q => q.playerId);
+
+  await asPlayer(game, humanIds()[0]);
+  await assert.rejects(() => act(game, 'bite', { targetId: humanIds()[1] }), /Bare zombier/);
+  await asPlayer(game, first.playerId);
+  await assert.rejects(() => act(game, 'bite', { targetId: first.playerId }), /kan ikke bites/);
+  const a = humanIds()[0];
+  game = await act(game, 'bite', { targetId: a });
+  assert.equal(zombieResponses(game).find(q => q.playerId === a)!.zombieRound, 1, 'the only zombie picked, so the round resolved');
+  assert.equal(zombieResponses(game).find(q => q.playerId === a)!.bittenBy, first.playerId);
+
+  // Round 2: two zombies, four humans.
+  const b = humanIds()[0];
+  game = await act(game, 'bite', { targetId: b });
+  await asPlayer(game, humanIds()[1]);
+  let seen = await rpc('game_state', [game.id]);
+  assert.equal(zombieResponses(seen).find(q => q.playerId === first.playerId)!.choice, null, 'humans do not see the picks');
+  await asPlayer(game, a);
+  seen = await rpc('game_state', [game.id]);
+  assert.equal(zombieResponses(seen).find(q => q.playerId === first.playerId)!.choice, b, 'zombies see the picks');
+  await assert.rejects(() => act(seen, 'bite', { targetId: b }), /allerede valgt/);
+  game = await act(seen, 'zombie_tick');
+  assert.equal(zombieResponses(game).find(q => q.playerId === b)!.zombieRound, null, 'nothing happens before the time is up');
+
+  // Time is up: the zombie who did not pick bites a random free human.
+  await db.query("update game_private.rounds set started_at=clock_timestamp()-interval '17 seconds' where id=$1", [game.round.id]);
+  game = await act(game, 'zombie_tick');
+  assert.equal(game.round.phase, 'reveal', 'four zombies against two humans: the game stops on its own');
+  const responses = zombieResponses(game);
+  assert.equal(responses.filter(q => q.zombieRound === 2).length, 2);
+  const points = (q: ZombieResponse) => q.points;
+  assert.equal(points(responses.find(q => q.playerId === first.playerId)!), 3);
+  assert.equal(points(responses.find(q => q.playerId === a)!), 1);
+  assert.ok(responses.filter(q => q.zombieRound === 2).every(q => q.points === 2));
+  const survivors = responses.filter(q => q.zombieRound === null);
+  assert.equal(survivors.length, 2);
+  assert.ok(survivors.every(q => q.points === 3 && !q.drinks), 'survivors get one more than the last bite round');
+  assert.ok(responses.filter(q => q.zombieRound !== null).every(q => q.drinks), 'every zombie drinks');
+});
+
+test('Zombie: with two players the game is over as soon as the first zombie is drawn', async () => {
+  let game = await create(2, ['zombie']);
+  game = await act(game, 'start');
+  game = await act(game, 'next');
+  assert.equal(game.round.phase, 'reveal');
+  const responses = zombieResponses(game);
+  assert.deepEqual(responses.map(q => q.points).sort(), [1, 3]);
 });

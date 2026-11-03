@@ -160,3 +160,30 @@
 /* Perfekte 10: the running time fades out (space is kept so the button does not move) */
 .timer-value{transition:opacity 1.5s ease}
 .timer-value.faded{opacity:0}
+
+/* Zombie: red screen for zombies until the reveal, the bite list and who is choosing */
+:root{--zombie-bg:#5a0f1b;--zombie-panel:#7d1426;--zombie-line:#ff829455}
+.zombie-mode{background:var(--zombie-bg)}
+.zombie-mode .game-header{border-color:#ffffff25}
+.zombie-mode .round-card{background:var(--zombie-panel);border-color:var(--zombie-line)}
+.zombie-mode .round-top .pill{color:#ffccd3;border-color:#ffccd344}
+.zombie{display:grid;gap:14px;justify-items:center}
+.zombie>*{max-width:100%}
+.zombie .timer-value{margin:4px 0 0}
+.zombie-round{margin:0;color:var(--muted);font-size:.92rem}
+.zombie-mode .zombie-round{color:#ffccd3}
+.zombie-title{display:flex;align-items:center;gap:10px;margin:0}
+.zombie-targets{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr));gap:10px;width:100%}
+.zombie-target{display:flex;align-items:center;gap:12px;min-height:56px;padding:10px 14px;background:var(--panel-strong);border:1px solid var(--line);border-radius:16px;color:var(--text);font:inherit;font-weight:600;text-align:left;cursor:pointer;transition:border-color .15s,background .15s}
+.zombie-target span{flex:1;min-width:0;overflow-wrap:anywhere}
+.zombie-target:hover:not(:disabled){border-color:var(--lime)}
+.zombie-target:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+.zombie-target:disabled{cursor:not-allowed}
+.zombie-target.taken{opacity:.55}
+.zombie-target.taken small{color:var(--red);font-weight:700}
+.zombie-list{display:grid;gap:6px;width:100%;text-align:left}
+.zombie-row{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--line)}
+.zombie-mode .zombie-row{border-color:var(--zombie-line)}
+.zombie-row strong{flex:1;min-width:0;overflow-wrap:anywhere}
+.zombie-row strong span{color:var(--muted);font-weight:400}
+.zombie-row>span{display:inline-flex;align-items:center;gap:5px;color:var(--muted);font-size:.88rem;white-space:nowrap}

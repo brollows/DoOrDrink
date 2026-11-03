@@ -59,6 +59,10 @@ export function getRoundState(game: Game): RoundState | null {
   if (round.phase === 'performing' && wavelength) {
     readyCount = wlRequired.filter(q => q.answers?.[wavelength.step] != null).length; readyTotal = wlRequired.length;
     ready = wavelength.done;
+  } else if (round.phase === 'performing' && task.answer.method === 'zombie') {
+    // Zombie: who has picked this bite round. The step ends on its own.
+    const zombies = round.responses.filter(q => q.zombieRound != null);
+    readyCount = zombies.filter(q => q.choice).length; readyTotal = zombies.length; ready = false;
   } else if (round.phase === 'performing') {
     readyCount = performingResponses.filter(q => q.finished).length; readyTotal = performingResponses.length;
     ready = readyCount === readyTotal || (mime && round.secondsLeft === 0);
@@ -68,6 +72,7 @@ export function getRoundState(game: Game): RoundState | null {
   const waitingOn = (round.phase === 'guessing'
     ? expectedGuesses.filter(q => !q.submitted)
     : wavelength ? (wavelength.shown ? [] : wlRequired.filter(q => q.answers?.[wavelength.step] == null))
+    : round.phase === 'performing' && task.answer.method === 'zombie' ? round.responses.filter(q => q.zombieRound != null && !q.choice)
     : performingResponses.filter(q => !q.finished)
   ).map(q => playerById(game, q.playerId));
 

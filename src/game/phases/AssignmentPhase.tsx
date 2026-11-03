@@ -2,7 +2,7 @@ import { Bot, Check, Dices, Hourglass } from 'lucide-react';
 import { Avatar } from '../../components/Avatar';
 import { TaskIcon } from '../TaskIcon';
 import type { PhaseProps } from './types';
-import { taskDescription } from '../../model';
+import { completionPoints, taskDescription } from '../../model';
 
 /** Step 1: the task is revealed and the chosen player accepts or passes it on. */
 export function AssignmentPhase({ state, busy, offline, act }: PhaseProps) {
@@ -27,7 +27,7 @@ export function AssignmentPhase({ state, busy, offline, act }: PhaseProps) {
       <div className="performer-card">
         <Avatar player={performer} />
         <div><strong>{performer.name}</strong><span>{task.answer.method === 'wavelength' ? 'Fasiten: 1 poeng per spiller som svarer likt på alle 5'
-          : round.transferred ? '+10 poeng for å ta over' : '+5 poeng for å fullføre'}</span></div>
+          : round.transferred ? `+${completionPoints(round.transfers ?? 1)} poeng for å ta over` : `+${completionPoints(0)} poeng for å fullføre`}</span></div>
       </div>
     )}
 

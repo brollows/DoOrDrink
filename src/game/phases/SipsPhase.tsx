@@ -7,6 +7,7 @@ import type { PhaseProps } from './types';
 function drinkReason(state: PhaseProps['state']) {
   const { game, task, recipient, myResponse } = state;
   if (!losersDrink(task)) return `${game.players.find(p => p.id === recipient!.giverId)?.name.toUpperCase()} HAR VALGT DEG`;
+  if (task.answer.method === 'zombie') return 'DU BLE ZOMBIE';
   if (myResponse?.choice === null) return 'DU SVARTE IKKE';
   if (task.answer.method === 'highest') return 'DU HADDE HØYEST';
   return task.answer.method === 'rps' ? 'DU TAPTE' : 'DU HAVNET I MINDRETALL';

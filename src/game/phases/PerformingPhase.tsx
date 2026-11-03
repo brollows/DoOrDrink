@@ -7,6 +7,7 @@ import { Stopwatch } from '../Stopwatch';
 import { HandIcon, TaskIcon } from '../TaskIcon';
 import { MimeView } from './MimeView';
 import { WavelengthView } from './WavelengthView';
+import { ZombieView } from './ZombieView';
 import type { PhaseProps } from './types';
 
 const handOrder: Hand[] = ['rock', 'paper', 'scissors'];
@@ -209,7 +210,8 @@ export function PerformingPhase(props: PhaseProps) {
   return <>
     <span className="eyebrow">{task.kind === 'everyone' ? 'NÅ GJELDER DET' : `${performer?.name.toUpperCase()} SIN TUR`}</span>
     <h1>{task.title}</h1>
-    {method === 'mime' ? <MimeView {...props} />
+    {method === 'zombie' ? <ZombieView {...props} />
+      : method === 'mime' ? <MimeView {...props} />
       : method === 'wavelength' ? <WavelengthView {...props} />
       : method === 'choice' ? <OptionPicker {...props} />
       : method === 'words' && myResponse ? <WordEntry {...props} />

@@ -1,5 +1,6 @@
 import {
   beats,
+  completionPoints,
   mimeMatch,
   normalizeWord,
   participants,
@@ -12,6 +13,7 @@ import {
   topWords,
   wavelengthStatus,
   wlStreak,
+  zombieSeconds,
   type Game,
   type Hand,
   type Player,
@@ -21,7 +23,10 @@ import {
 /** Local single-device game. Mirrors the server rules in supabase/migrations. */
 type DemoGame = Game & {
   taskOrder: string[];
-  /** When the current round's countdown started (Topp 5: entering the performing step; Mim det: the performer's start). */
+  /**
+   * When the current round's countdown started (Topp 5: entering the performing step; Mim det: the performer's start;
+   * Zombie: the current bite round).
+   */
   performingStartedAt?: number | null;
   usedTasks: string[];
   declined: string[];
@@ -96,6 +101,13 @@ export function demoState(meId?: string): Game {
       0,
       timeout! - (Date.now() - game.performingStartedAt) / 1000,
     );
+  // Zombie: the phones count down 15 seconds per bite round; the round resolves after 16.
+  if (round && method === "zombie")
+    round.secondsLeft = round.phase === "performing" && round.zombieStep != null && game.performingStartedAt
+      ? Math.max(0, zombieSeconds - (Date.now() - game.performingStartedAt) / 1000) : null;
+  // Zombie: only zombies see which humans the other zombies have picked.
+  const myZombie = round && method === "zombie" &&
+    round.responses.some((q) => q.playerId === game.meId && q.zombieRound != null);
   const revealed = round && ["reveal", "leaderboard", "sips"].includes(round.phase);
   if (round && method === "mime" && round.word) {
     const word = normalizeWord(round.word);
@@ -115,7 +127,7 @@ export function demoState(meId?: string): Game {
         guess: mine ? q.guess : null,
         actual: mine && challenge ? q.actual : null,
         startedAt: mine ? q.startedAt : null,
-        choice: mine ? q.choice : null,
+        choice: mine || myZombie ? q.choice : null,
         words: mine ? q.words : null,
         // Others see '?' for an answer to the current question until its result is shown.
         answers: mine || !q.answers ? q.answers : q.answers.map((a, i) =>
@@ -175,6 +187,8 @@ function nextRound(game: DemoGame) {
     drinks: false,
     words: null,
     answers: null,
+    zombieRound: null,
+    bittenBy: null,
   }));
   let wlQuestions: number[] | null = null;
   if (task.answer.method === "wavelength") {
@@ -202,6 +216,8 @@ function nextRound(game: DemoGame) {
     performerId: challenge ? pick(pool).id : null,
     accepted: !challenge,
     transferred: false,
+    transfers: 0,
+    zombieStep: null,
     awarded: false,
     actual: null,
     winners: [],
@@ -264,9 +280,63 @@ function awardMime(game: DemoGame) {
   });
   if (r.performerId && game.performingStartedAt) {
     r.responses.find((q) => q.playerId === r.performerId)!.points =
-      r.transferred ? 10 : 5;
+      completionPoints(r.transfers);
     game.players.find((p) => p.id === r.performerId)!.completed = true;
   }
+}
+
+function awardZombie(r: NonNullable<Game["round"]>) {
+  // The first zombie 3, bitten in bite round n gets n, survivors one more than the last bite round. Every zombie drinks.
+  if (r.zombieStep == null) return;
+  for (const q of r.responses) {
+    q.points = q.zombieRound === 0 ? 3 : q.zombieRound ?? r.zombieStep;
+    q.drinks = q.zombieRound != null;
+  }
+}
+
+/** Zombie: the first zombie is drawn when the host starts the step. */
+function zombieStart(game: DemoGame) {
+  const r = game.round!;
+  if (r.zombieStep != null) return;
+  const first = pick(r.responses);
+  first.zombieRound = 0;
+  r.performerId = first.playerId;
+  r.zombieStep = 1;
+  game.performingStartedAt = Date.now();
+  zombieFinish(game);
+}
+
+/** Zombie: stops when there are at least as many zombies as humans, and goes to the reveal. */
+function zombieFinish(game: DemoGame) {
+  const r = game.round!;
+  const zombies = r.responses.filter((q) => q.zombieRound != null).length;
+  if (zombies >= r.responses.length - zombies) {
+    award(game);
+    r.phase = "reveal";
+  }
+}
+
+/** Zombie: resolves the bite round once every zombie has picked, or when the 16 seconds are up. */
+function zombieResolve(game: DemoGame) {
+  const r = game.round!;
+  if (r.phase !== "performing" || r.awarded || r.zombieStep == null) return;
+  const zombies = r.responses.filter((q) => q.zombieRound != null);
+  const timeUp = Date.now() >= game.performingStartedAt! + (zombieSeconds + 1) * 1000;
+  if (zombies.some((q) => q.choice === null) && !timeUp) return;
+  // Zombies who did not pick bite a random free human.
+  for (const zombie of shuffle(zombies.filter((q) => q.choice === null))) {
+    const free = r.responses.filter((h) => h.zombieRound == null && !r.responses.some((z) => z.choice === h.playerId));
+    if (!free.length) break;
+    zombie.choice = pick(free).playerId;
+  }
+  for (const zombie of zombies) {
+    const bitten = r.responses.find((h) => h.playerId === zombie.choice && h.zombieRound == null);
+    if (bitten) Object.assign(bitten, { zombieRound: r.zombieStep, bittenBy: zombie.playerId });
+  }
+  r.responses.forEach((q) => { q.choice = null; });
+  r.zombieStep += 1;
+  game.performingStartedAt = Date.now();
+  zombieFinish(game);
 }
 
 function awardWavelength(game: DemoGame) {
@@ -323,7 +393,7 @@ function awardScores(game: DemoGame) {
   });
   if (r.performerId && r.actual !== null) {
     r.responses.find((q) => q.playerId === r.performerId)!.points =
-      r.transferred ? 10 : 5;
+      completionPoints(r.transfers);
     game.players.find((p) => p.id === r.performerId)!.completed = true;
   }
 }
@@ -332,7 +402,8 @@ function award(game: DemoGame) {
   const r = game.round!;
   if (r.awarded) return;
   const task = tasks[r.taskId];
-  if (task.answer.method === "rps") awardRps(r.responses);
+  if (task.answer.method === "zombie") awardZombie(r);
+  else if (task.answer.method === "rps") awardRps(r.responses);
   else if (task.answer.method === "choice") awardChoice(r.responses);
   else if (task.answer.method === "highest") awardHighest(r.responses);
   else if (task.answer.method === "mime") awardMime(game);
@@ -443,7 +514,7 @@ export function demoAction(
     const task = tasks[r.taskId];
     const challenge = task.kind === "challenge";
     const q = r.responses.find((q) => q.playerId === meId);
-    if (["guess", "timer_start", "timer_stop", "choose", "words", "mime_guess", "wl_answer"].includes(action) && !q)
+    if (["guess", "timer_start", "timer_stop", "choose", "words", "mime_guess", "wl_answer", "bite"].includes(action) && !q)
       throw new Error("Du deltar ikke i denne runden.");
     if (action === "skip_round") {
       nextRound(game);
@@ -467,6 +538,7 @@ export function demoAction(
         game.declined.push(meId);
         r.performerId = pick(pool).id;
         r.transferred = true;
+        r.transfers = game.declined.length;
       }
     } else if (action === "guess") {
       const value = Number(payload.value);
@@ -588,6 +660,24 @@ export function demoAction(
         r.wlStep = step + 1;
         r.wlShown = false;
       }
+    } else if (action === "bite") {
+      if (r.phase !== "performing" || r.awarded || task.answer.method !== "zombie" || r.zombieStep == null)
+        throw new Error("Du kan ikke bite nå.");
+      if (q!.zombieRound == null) throw new Error("Bare zombier kan bite.");
+      // After the time is up the round resolves with a random bite instead.
+      if (Date.now() < game.performingStartedAt! + (zombieSeconds + 1) * 1000) {
+        if (q!.choice !== null) throw new Error("Du har allerede valgt.");
+        const target = String(payload.targetId);
+        if (!r.responses.some((h) => h.playerId === target && h.zombieRound == null))
+          throw new Error("Denne spilleren kan ikke bites.");
+        if (r.responses.some((z) => z.choice === target))
+          throw new Error("En annen zombie har allerede valgt denne spilleren.");
+        q!.choice = target;
+      }
+      zombieResolve(game);
+    } else if (action === "zombie_tick") {
+      // Sent by the phones when the countdown runs out. Does nothing before the time is up.
+      if (task.answer.method === "zombie") zombieResolve(game);
     } else if (action === "allocate") {
       const target = String(payload.recipientId);
       if (
@@ -624,6 +714,8 @@ export function demoAction(
           game.performingStartedAt ??= Date.now();
         if (phase === "reveal") award(game);
         r.phase = phase;
+        // Zombie: the first zombie is drawn as the step starts (and the game may already be over with two players).
+        if (phase === "performing" && task.answer.method === "zombie") zombieStart(game);
       }
     } else throw new Error("Ukjent handling.");
   }

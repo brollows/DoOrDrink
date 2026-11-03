@@ -40,9 +40,12 @@ export default function GamePage() {
   const isHost = game.hostId === game.meId;
   const roundState = game.status === 'playing' ? getRoundState(game) : null;
   const drinkMode = roundState?.mustDrink && roundState.round.phase === 'sips';
+  // Zombie: red from being bitten until the winners are shown.
+  const zombieMode = roundState?.round.phase === 'performing' && roundState.task.answer.method === 'zombie'
+    && roundState.myResponse?.zombieRound != null;
 
   return (
-    <div className={`game-layout status-${game.status} ${drinkMode ? 'drink-mode' : ''}`}>
+    <div className={`game-layout status-${game.status} ${drinkMode ? 'drink-mode' : ''} ${zombieMode ? 'zombie-mode' : ''}`}>
       <GameHeader game={game} me={me} isHost={isHost} />
       {game.id === 'demo' && <DemoBar game={game} onSwitchPlayer={id => void switchPlayer(id)} />}
       {offline && <div className="offline" role="status"><WifiOff size={16} /> Ingen forbindelse. Kobler til når nettet er tilbake.</div>}

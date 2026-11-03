@@ -24,6 +24,7 @@ export function taskTiming(task: Task): [number, number, number] {
     case 'choice': return [20, 35, 60];
     case 'rps': return [25, 45, 80]; // includes ties and reselecting
     case 'highest': return [20, 30, 50];
+    case 'zombie': return [35, 55, 85]; // a few bite rounds of at most 16 seconds
     default: return [25, 40, 65];
   }
 }

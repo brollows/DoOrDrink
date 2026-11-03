@@ -124,6 +124,38 @@ function NumberResults({ state }: { state: State }) {
   );
 }
 
+/** Zombie: survivors first, then who held out longest; the first zombie last. */
+function ZombieResults({ state }: { state: State }) {
+  const { game, round, task } = state;
+  const name = (id?: string | null) => game.players.find(p => p.id === id)?.name ?? '';
+  const order = (q: Response) => q.zombieRound == null ? Infinity : q.zombieRound;
+  const rows = [...round.responses].sort((a, b) => order(b) - order(a));
+  const survivors = rows.filter(q => q.zombieRound == null).length;
+  return <>
+    <p className="task-description">
+      {survivors ? `${survivors} overlevde!` : 'Ingen overlevde.'}
+      {game.gameSips !== false && ` Alle zombier tar ${sipCount(task)} slurker.`}
+    </p>
+    <div className="ranking" role="region" aria-label="Hvem som ble bitt" tabIndex={0}>
+      {rows.map(q => {
+        const player = game.players.find(p => p.id === q.playerId);
+        if (!player) return null;
+        return (
+          <div className={`ranking-row ${player.id === game.meId ? 'is-me' : ''} ${q.zombieRound != null ? 'too-high' : ''}`} key={player.id}>
+            <span className={`rank ${q.zombieRound == null ? 'podium' : ''}`}>{q.zombieRound == null ? '★' : q.zombieRound === 0 ? '☠' : q.zombieRound}</span>
+            <Avatar player={player} small />
+            <div className="ranking-name">
+              <strong>{player.name}{player.id === game.meId && <span> (deg)</span>}</strong>
+              <span>{q.zombieRound == null ? 'Overlevde' : q.zombieRound === 0 ? 'Første zombie' : `Bitt av ${name(q.bittenBy)} i runde ${q.zombieRound}`}</span>
+            </div>
+            <span className="points">+{q.points}<small>poeng</small></span>
+          </div>
+        );
+      })}
+    </div>
+  </>;
+}
+
 /** Samme bølgelengde: the performer's answers to the questions that were played, and how many held on. */
 function WavelengthResults({ state }: { state: State }) {
   const { round, task, performer } = state;
@@ -171,6 +203,11 @@ export function RevealPhase({ state }: PhaseProps) {
     <span className="eyebrow">ØYEBLIKKET ER HER</span>
     <h1>Nest mest.</h1>
     <NumberResults state={state} />
+  </>;
+  if (method === 'zombie') return <>
+    <span className="eyebrow">ZOMBIENE HAR SPIST</span>
+    <h1>Zombie.</h1>
+    <ZombieResults state={state} />
   </>;
   if (method === 'mime') return <>
     <span className="eyebrow">{performer?.name.toUpperCase()} MIMET</span>
