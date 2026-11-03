@@ -281,8 +281,9 @@ export function roundTask(round: Round): Task {
 export const phaseNames: Record<Phase, string> = {
   assignment: 'Oppgaven', guessing: 'Gjett', performing: 'Gjør det', reveal: 'Fasit', sips: 'Slurker', leaderboard: 'Poengtavle'
 };
-export function rankingPoints(count: number, rank: number) {
-  return count - rank + 1 + (rank <= 2 && count >= 3 ? 1 : 0) + (rank === 1 && count >= 2 ? 2 : 0);
+/** Position scoring: 1st gets 10, 2nd 9, ... 9th 2, and everyone further down gets 1. Same as game_private.position_points. */
+export function rankingPoints(rank: number) {
+  return Math.max(11 - rank, 1);
 }
 export function formatTime(value: number) {
   return value.toLocaleString('nb-NO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

@@ -19,9 +19,10 @@ Short version:
 Every new or changed task must follow one of these two scoring systems:
 
 - **Win/lose tasks** (a clear winner, e.g. Stein, saks, papir and Ville du helst): every winner gets **3 points**.
-- **Closest-wins tasks** (guess or hit a value, e.g. Bånn i bøtta, Kjenn kompisen, Perfekte 10): use the same
-  position scoring as the challenge tasks. Closest gets the most, ties share the best position, no answer gives 0
-  (`rankingPoints` in `src/model.ts`, `award_round` in the SQL). A challenge performer who completes gets 5 points,
+- **Closest-wins tasks** (guess or hit a value, e.g. Bånn i bøtta, Kjenn kompisen, Perfekte 10, Mim det!): use the
+  same capped position scoring: 1st gets 10, 2nd 9, ... 9th 2, and everyone further down who made it gets 1. Ties
+  share the best position, no answer gives 0 (`rankingPoints` in `src/model.ts`, `game_private.position_points` in
+  the SQL). A challenge performer who completes gets 5 points,
   or 10 if the task was passed on to them. Nest mest uses this too, ranking from the top after the highest number
   is removed.
 - **Deliberate exceptions** (decided by the owner):

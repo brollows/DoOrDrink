@@ -245,10 +245,9 @@ function awardHighest(responses: Response[]) {
   const ranked = responses
     .filter((q) => q.choice !== null && !q.drinks)
     .sort((a, b) => Number(b.choice) - Number(a.choice));
-  const count = responses.filter((q) => !q.drinks).length;
   ranked.forEach((q) => {
     q.rank = ranked.findIndex((other) => other.choice === q.choice) + 1;
-    q.points = rankingPoints(count, q.rank);
+    q.points = rankingPoints(q.rank);
   });
 }
 
@@ -261,7 +260,7 @@ function awardMime(game: DemoGame) {
     .sort((a, b) => a.actual! - b.actual!);
   correct.forEach((q) => {
     q.rank = correct.findIndex((other) => other.actual === q.actual) + 1;
-    q.points = rankingPoints(guessers.length, q.rank);
+    q.points = rankingPoints(q.rank);
   });
   if (r.performerId && game.performingStartedAt) {
     r.responses.find((q) => q.playerId === r.performerId)!.points =
@@ -320,7 +319,7 @@ function awardScores(game: DemoGame) {
     .sort((a, b) => distance(a) - distance(b));
   valid.forEach((q) => {
     q.rank = valid.findIndex((other) => distance(other) === distance(q)) + 1;
-    q.points = rankingPoints(guessers.length, q.rank);
+    q.points = rankingPoints(q.rank);
   });
   if (r.performerId && r.actual !== null) {
     r.responses.find((q) => q.playerId === r.performerId)!.points =

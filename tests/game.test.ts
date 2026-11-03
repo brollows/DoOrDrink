@@ -34,7 +34,7 @@ before(async () => {
   await db.exec(`create role anon; create role authenticated; create schema auth;
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.user_id',true),'')::uuid$$;`);
   // 002 schedules cleanup with pg_cron, which PGlite does not provide.
-  for (const migration of ['001_game.sql', '003_host_plays.sql', '004_sips_before_leaderboard.sql', '005_more_tasks.sql', '006_would_you_rather_points.sql', '007_more_challenges.sql', '008_top_five_and_second_highest.sql', '009_mime.sql', '010_wavelength.sql', '011_stricter_typos.sql', '012_host_settings.sql', '013_round_plan_and_pace.sql'])
+  for (const migration of ['001_game.sql', '003_host_plays.sql', '004_sips_before_leaderboard.sql', '005_more_tasks.sql', '006_would_you_rather_points.sql', '007_more_challenges.sql', '008_top_five_and_second_highest.sql', '009_mime.sql', '010_wavelength.sql', '011_stricter_typos.sql', '012_host_settings.sql', '013_round_plan_and_pace.sql', '014_ten_seconds_fade.sql', '015_capped_position_points.sql'])
     await db.exec(await readFile(new URL(`../supabase/migrations/${migration}`, import.meta.url), 'utf8'));
 });
 after(async () => { await db.close(); });
@@ -233,11 +233,14 @@ test('host ending early preserves awarded scores and shows the finished state', 
   assert.deepEqual(game.players.map(p => p.score), scores);
 });
 
-test('position scores follow the stated bonuses, including a two-player round', () => {
-  assert.deepEqual(Array.from({ length: 9 }, (_, i) => rankingPoints(9, 9 - i)), [1, 2, 3, 4, 5, 6, 7, 9, 12]);
-  assert.deepEqual(Array.from({ length: 5 }, (_, i) => rankingPoints(5, 5 - i)), [1, 2, 3, 5, 8]);
-  assert.equal(rankingPoints(1, 1), 1);
-  assert.deepEqual([rankingPoints(2, 2), rankingPoints(2, 1)], [1, 4]);
+test('position scores go 10, 9, ... 2 and then 1 for everyone further down', () => {
+  assert.deepEqual(Array.from({ length: 12 }, (_, i) => rankingPoints(i + 1)), [10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 1, 1]);
+  assert.equal(rankingPoints(19), 1);
+});
+
+test('the server uses the same capped position scoring', async () => {
+  const result = await db.query<{ points: number }>('select game_private.position_points(p) as points from generate_series(1,12) p order by p');
+  assert.deepEqual(result.rows.map(r => r.points), Array.from({ length: 12 }, (_, i) => rankingPoints(i + 1)));
 });
 
 test('IDs allow duplicate names, rejoining restores identity, strangers cannot read or control', async () => {
@@ -308,9 +311,9 @@ test('ties use best occupied position and skipped responses score zero', async (
   game = await act(game, 'timer_stop', { value: 10 });
   await identity(0); game = await act(game, 'next');
   const response = (index: number) => game.round.responses.find(q => q.playerId === guessers[index].id)!;
-  assert.equal(response(0).points, 12); assert.equal(response(1).points, 12);
-  assert.equal(response(2).rank, 3); assert.equal(response(2).points, 7);
-  assert.equal(response(6).points, 3); assert.equal(response(7).points, 3);
+  assert.equal(response(0).points, 10); assert.equal(response(1).points, 10);
+  assert.equal(response(2).rank, 3); assert.equal(response(2).points, 8);
+  assert.equal(response(6).points, 4); assert.equal(response(7).points, 4);
   assert.equal(response(8).points, 0);
 });
 
@@ -414,8 +417,8 @@ test('manual results support units, host entry, hidden answers and tied last pla
   assert.equal(hidden.round.actual, null);
   await identity(0); game = await act(game, 'next');
   assert.equal(game.round.actual, 100);
-  assert.equal(game.round.responses.find(q => q.playerId === guessers[3].id)!.points, 2);
-  assert.equal(game.round.responses.find(q => q.playerId === guessers[4].id)!.points, 2);
+  assert.equal(game.round.responses.find(q => q.playerId === guessers[3].id)!.points, 7);
+  assert.equal(game.round.responses.find(q => q.playerId === guessers[4].id)!.points, 7);
   assert.equal(game.round.responses.find(q => q.playerId === performer)!.points, 5);
 });
 
@@ -706,8 +709,8 @@ test('Nest mest: the highest number drinks 5, the second highest wins with posit
   const result = (id: string) => { const q = game.round.responses.find(q => q.playerId === id)!; return [q.choice, q.points, q.drinks]; };
   assert.deepEqual(result(p0), ['98', 0, true]);
   assert.deepEqual(result(p3), ['98', 0, true], 'everyone tied on the highest number drinks');
-  assert.deepEqual(result(p1), ['93', 6, false], 'second highest wins');
-  assert.deepEqual(result(p2), ['80', 3, false]);
+  assert.deepEqual(result(p1), ['93', 10, false], 'second highest wins');
+  assert.deepEqual(result(p2), ['80', 9, false]);
   assert.deepEqual(result(p4), [null, 0, false], 'no answer gives no points');
   game = await act(game, 'next');
   assert.deepEqual(game.round.winners, [], 'nobody hands out sips');
@@ -770,7 +773,7 @@ test('Mim det: one secret word, server-timed hints, fastest correct guess wins, 
   await identity(0); game = await act(game, 'next');
   assert.equal(game.round.word, 'Ballettdanser');
   const points = (id: string) => game.round.responses.find(q => q.playerId === id)!.points;
-  assert.deepEqual(guessers.map(points), [rankingPoints(4, 1), rankingPoints(4, 2), 0, 0], 'position scoring among the guessers, no guess gives 0');
+  assert.deepEqual(guessers.map(points), [rankingPoints(1), rankingPoints(2), 0, 0], 'position scoring among the guessers, no guess gives 0');
   assert.equal(points(performer), 5);
   assert.ok(game.players.find(p => p.id === performer)!.completed);
 });

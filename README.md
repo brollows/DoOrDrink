@@ -20,7 +20,7 @@ The local project is connected to `https://mavqjmobgreyoyuqvquv.supabase.co`. Bo
 
 1. Create a dedicated Supabase project.
 2. Enable **Authentication → Sign In / Providers → Anonymous Sign-Ins**. Players never need to provide an email or password.
-3. Run `supabase/migrations/001_game.sql` in the SQL Editor, then `002_cleanup.sql` and `003`–`014` in numeric order (every file in `supabase/migrations/`). Run each migration once, in order; do not rerun earlier ones on an existing database. An existing database only needs the migrations it does not have yet. The host menu requires `012_host_settings.sql`, and the fixed round plan requires `013_round_plan_and_pace.sql`; run them before deploying the updated client.
+3. Run `supabase/migrations/001_game.sql` in the SQL Editor, then `002_cleanup.sql` and `003`–`015` in numeric order (every file in `supabase/migrations/`). Run each migration once, in order; do not rerun earlier ones on an existing database. An existing database only needs the migrations it does not have yet. The host menu requires `012_host_settings.sql`, and the fixed round plan requires `013_round_plan_and_pace.sql`; run them before deploying the updated client.
 4. Copy `.env.example` to `.env`, and enter the project's URL and public publishable/anon key. Never put a `service_role` or secret key in a `VITE_` variable.
 5. Restart the development server.
 6. Verify that `public.session_updates` is enabled in the `supabase_realtime` publication. The first migration adds it when the publication exists.

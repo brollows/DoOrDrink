@@ -33,7 +33,7 @@ function Rules() {
     </ol>
     <p className="muted">Ved start trekkes opptil én utfordringsrunde per aktiv spiller, begrenset av utfordringene som finnes. Alle fellesspill beholdes. Hver spiller fullfører maks én utfordring. «Bånn i bøtta», «Mim det!» og «Samme bølgelengde» kan trekkes to ganger, med en ny spiller hver gang. Rundevisningen viser hvor mange runder som gjenstår. Sammenlagt poengtavle vises når spillet er ferdig eller verten avslutter tidlig. Spilldata slettes innen 24 timer.</p>
     <p className="muted">Ved lik poengsum rundt grensen for å dele ut slurker får de som ble med først dele ut. Bare spillere med poeng i runden kan dele ut.</p>
-    <p className="muted">Poeng: sisteplass får 1. Opp til tredjeplass øker det med 1 per plass; andreplass får 2 mer enn tredjeplass og førsteplass får 3 mer enn andreplass. Ved fem som gjetter: 1–2–3–5–8.</p>
+    <p className="muted">Poeng: førsteplass får 10, andreplass 9 og så videre ned til 2 poeng for niendeplass. Alle fra tiendeplass og nedover som klarte det, får 1 poeng.</p>
   </>;
 }
 
