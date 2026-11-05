@@ -167,7 +167,7 @@ export const tasks: Record<string, Task> = {
     kind: 'everyone', sips: 'losers', sipCount: 2, answer: { method: 'zombie', unit: '', min: 0, max: 0 } },
   wyr_naked: wouldYouRather('wyr_naked', ['Hatt en kjæreste som gråter hver gang du kler av deg', 'Hatt en kjæreste som ler hver gang du kler av deg']),
   wyr_honest: wouldYouRather('wyr_honest', ['Måttet si høyt alt du tenker resten av kvelden', 'Ikke fått si et eneste ord resten av kvelden']),
-  wyr_history: wouldYouRather('wyr_history', ['Fått nettleserhistorikken din vist på storskjerm', 'Fått alle meldingene dine lest høyt for familien']),
+  wyr_history: wouldYouRather('wyr_history', ['At du selv alltid lukter drit men kjenner ikke egen lukt', 'At alle andre alltid lukter drit og du kjenner det veldig godt']),
   wyr_wake_up: wouldYouRather('wyr_wake_up', ['Våknet ved siden av eksen din', 'Våknet ved siden av sjefen din']),
   wyr_beer: wouldYouRather('wyr_beer', ['Bare drukket lunken øl resten av livet', 'Aldri drukket alkohol igjen']),
 };

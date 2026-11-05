@@ -34,7 +34,7 @@ before(async () => {
   await db.exec(`create role anon; create role authenticated; create schema auth;
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.user_id',true),'')::uuid$$;`);
   // 002 schedules cleanup with pg_cron, which PGlite does not provide.
-  for (const migration of ['001_game.sql', '003_host_plays.sql', '004_sips_before_leaderboard.sql', '005_more_tasks.sql', '006_would_you_rather_points.sql', '007_more_challenges.sql', '008_top_five_and_second_highest.sql', '009_mime.sql', '010_wavelength.sql', '011_stricter_typos.sql', '012_host_settings.sql', '013_round_plan_and_pace.sql', '014_ten_seconds_fade.sql', '015_capped_position_points.sql', '016_zombie_and_transfer_bonus.sql', '017_player_photos.sql'])
+  for (const migration of ['001_game.sql', '003_host_plays.sql', '004_sips_before_leaderboard.sql', '005_more_tasks.sql', '006_would_you_rather_points.sql', '007_more_challenges.sql', '008_top_five_and_second_highest.sql', '009_mime.sql', '010_wavelength.sql', '011_stricter_typos.sql', '012_host_settings.sql', '013_round_plan_and_pace.sql', '014_ten_seconds_fade.sql', '015_capped_position_points.sql', '016_zombie_and_transfer_bonus.sql', '017_player_photos.sql', '018_wyr_smell.sql'])
     await db.exec(await readFile(new URL(`../supabase/migrations/${migration}`, import.meta.url), 'utf8'));
 });
 after(async () => { await db.close(); });
@@ -993,4 +993,11 @@ test('profile photos: only your own, only before the start, and game_state only 
   // Locked once the game has started.
   game = await act(game, 'start');
   await assert.rejects(() => rpc('set_photo', [game.id, photo]), /før spillet starter/);
+});
+
+test('"Ville du helst" options are the same in the app and on the server', async () => {
+  const rows = await db.query<{ id: string; options: string[] }>("select id,definition->'options' as options from game_private.tasks where definition->'answer'->>'method'='choice'");
+  const server = Object.fromEntries(rows.rows.map(r => [r.id, r.options]));
+  const app = Object.fromEntries(Object.values(taskDefinitions).filter(t => t.answer.method === 'choice').map(t => [t.id, t.options]));
+  assert.deepEqual(server, app);
 });
