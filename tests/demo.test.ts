@@ -45,6 +45,8 @@ test('demo mirrors participant-scaled givers, exclusive recipients and final-onl
       }
       assert.equal(game.round!.allocations.length, expected);
       act('next');
+      assert.equal(game.round!.phase, 'leaderboard', 'the standings end every round but the last');
+      act('next');
       assert.equal(game.round!.taskId, 'ten_seconds');
       assert.equal(game.round!.phase, 'assignment');
       assert.deepEqual(game.players.map(p => p.score), scores);

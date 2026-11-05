@@ -209,5 +209,6 @@
 .winner-photos.shared .avatar.avatar-winner{width:84px;height:84px;border-radius:24px;font-size:2.1rem}
 .winner-crown{position:absolute;top:-14px;left:50%;transform:translateX(-50%);display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--lime);color:var(--on-lime)}
 .winner-score{text-align:center;color:var(--lime);font-weight:700;margin:6px 0 0}
+.ranking-row.place-1 .avatar{width:64px;height:64px;border-radius:18px;font-size:1.6rem;box-shadow:0 0 0 2px var(--lime)}
 .ranking-row.place-2 .avatar{width:56px;height:56px;border-radius:16px;font-size:1.35rem}
 .ranking-row.place-3 .avatar{width:46px;height:46px;border-radius:13px;font-size:1.15rem}

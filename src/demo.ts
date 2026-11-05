@@ -720,8 +720,8 @@ export function demoAction(
         );
       r.allocations.push({ giverId: meId, recipientId: target });
     } else if (action === "next" || action === "back") {
-      const phases = roundPhases(r.taskId, task, game);
-      // A round still at the old leaderboard step counts as finished.
+      const phases = roundPhases(r.taskId, task, game, r.number);
+      // A round at a step that is no longer in its list (the leaderboard in the last round) counts as finished.
       const index = phases.includes(r.phase) ? phases.indexOf(r.phase) : phases.length;
       if (action === "back") {
         if (!index) throw new Error("Dette er første steg.");

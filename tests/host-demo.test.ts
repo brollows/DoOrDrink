@@ -47,11 +47,14 @@ test('local demo mirrors both sip switches and preserves score when skipping aft
     const scores = game.players.map(p => p.score);
     assert.ok(scores.some(score => score > 0));
     game = act(game, 'next');
-    // Without a sips step, the reveal is the last step and the next round starts.
+    // Without a sips step, the standings come right after the reveal.
     if (gameSips) {
       assert.equal(game.round!.phase, 'sips');
       game = act(game, 'back'); assert.equal(game.round!.phase, 'reveal');
       game = act(game, 'skip_round');
+    } else {
+      assert.equal(game.round!.phase, 'leaderboard');
+      game = act(game, 'next');
     }
     assert.deepEqual(game.players.map(p => p.score), scores);
     assert.equal(game.round!.taskId, 'ten_seconds'); assert.equal(game.round!.phase, 'assignment');

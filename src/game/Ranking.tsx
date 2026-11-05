@@ -7,9 +7,12 @@ type Props = {
   total?: boolean;
   /** Final results: leave out the winners (shown large above) and give 2nd and 3rd place bigger photos. */
   podium?: boolean;
+  /** Standings after a round: the top three get bigger photos, and each row shows this round's points. */
+  standings?: boolean;
 };
 
-function resultDetail(player: Player, total: boolean, round: Round | null, task: Task | null, response: Response | undefined) {
+function resultDetail(player: Player, total: boolean, standings: boolean, round: Round | null, task: Task | null, response: Response | undefined) {
+  if (standings) return `+${response?.points ?? 0} denne runden`;
   if (total) return player.completed ? 'Oppgave fullført' : '';
   if (player.id === round?.performerId) return task?.answer.method === 'mime' ? 'Mimet' : task?.answer.method === 'wavelength' ? 'Var fasiten' : 'Utførte oppgaven';
   if (task?.answer.method === 'wavelength') return `${response?.points ?? 0} av ${task.answer.questions ?? 5} like svar`;
@@ -20,7 +23,7 @@ function resultDetail(player: Player, total: boolean, round: Round | null, task:
   return `${formatTime(response.actual)} s · ${formatTime(Math.abs(response.actual - (task?.answer.target || 0)))} s unna`;
 }
 
-export function Ranking({ game, total = false, podium = false }: Props) {
+export function Ranking({ game, total = false, podium = false, standings = false }: Props) {
   const round = game.round;
   const task = round ? roundTask(round) : null;
   const responseOf = (player: Player) => round?.responses.find(q => q.playerId === player.id);
@@ -37,12 +40,12 @@ export function Ranking({ game, total = false, podium = false }: Props) {
           : response?.points ? rows.findIndex(other => pointsOf(other) === response.points) + 1 : null;
         if (podium && rank === 1) return null;
         return (
-          <div className={`ranking-row ${player.id === game.meId ? 'is-me' : ''} ${podium && rank && rank <= 3 ? `place-${rank}` : ''}`} key={player.id}>
+          <div className={`ranking-row ${player.id === game.meId ? 'is-me' : ''} ${(podium || standings) && rank && rank <= 3 ? `place-${rank}` : ''}`} key={player.id}>
             <span className={`rank ${index < 3 ? 'podium' : ''}`}>{rank || '–'}</span>
             <Avatar player={player} small />
             <div className="ranking-name">
               <strong>{player.name}{player.id === game.meId && <span> (deg)</span>}</strong>
-              <span>{resultDetail(player, total, round, task, response)}</span>
+              <span>{resultDetail(player, total, standings, round, task, response)}</span>
             </div>
             <span className="points">{total ? player.score : `+${response?.points || 0}`}<small>poeng</small></span>
           </div>

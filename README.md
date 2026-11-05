@@ -88,6 +88,9 @@ The service worker caches the app shell, not Supabase data. Online multiplayer r
 - `supabase/migrations/010_wavelength.sql`: Samme bølgelengde (question pool, elimination per question).
 - `supabase/migrations/011_stricter_typos.sql`: one shared typo rule for Topp 5 and Mim det.
 - `supabase/migrations/012_round_plan_and_pace.sql`: fixed participant-sized challenge plan, sip giver limits and final-only standings. Apply this migration before deploying the corresponding frontend; it updates existing RPCs without deleting game data.
+- `supabase/migrations/017_player_photos.sql`: profile photos in their own table; `game_state` only carries a version per player.
+- `supabase/migrations/018_wyr_smell.sql`: new options for one would-you-rather question.
+- `supabase/migrations/019_standings_step.sql`: the standings are the last step of every round except the last.
 
 Private tables cannot be read or written by client roles. The exposed functions check `auth.uid()`, membership, phase and host/performer permissions. Hidden answers never enter a spectator's pre-reveal snapshot or Realtime event. Realtime sends only a session ID and version. The database session lock and allocation uniqueness constraint make simultaneous allocations safe. Host next/back requests include their expected phase to prevent duplicate requests skipping steps.
 

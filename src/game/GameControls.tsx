@@ -15,17 +15,19 @@ type Props = {
 /** Bottom bar for the host: step back, go forward and end the game. */
 export function HostControls({ state, busy, offline, act, onConfirm }: Props) {
   const { game, round, task, ready, readyCount, readyTotal, canMonitor } = state;
-  // The last step (sips, or the reveal when sips are off) leads to the next round.
-  const phases = roundPhases(round.taskId, task, game);
+  // The last step (the standings, or in the last round the sips or the reveal) leads to the next round.
+  const phases = roundPhases(round.taskId, task, game, round.number);
   const lastStep = !phases.includes(round.phase) || round.phase === phases[phases.length - 1];
+  const nextPhase = phases[phases.indexOf(round.phase) + 1];
   const disabled = busy || offline;
   // Moving on before everyone is done needs a confirmation.
   const next = () => { if (!ready && !round.awarded) onConfirm('next'); else void act('next'); };
   const nextLabel = lastStep
     ? round.number >= game.taskCount ? 'Se sluttresultatet' : 'Neste runde'
     : round.phase === 'assignment' && !round.accepted ? 'Hopp over'
-    : round.phase === 'performing' ? 'Vis fasiten'
-    : round.phase === 'reveal' ? 'Til slurkene' : 'Gå videre';
+    : nextPhase === 'reveal' ? 'Vis fasiten'
+    : nextPhase === 'sips' ? 'Til slurkene'
+    : nextPhase === 'leaderboard' ? 'Vis poengtavlen' : 'Gå videre';
 
   return (
     <footer className="host-controls">

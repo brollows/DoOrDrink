@@ -315,11 +315,17 @@ export function taskDescription(task: Task, game: Game) {
   return task.description.replace(/, mindretallet tar 3 slurker\./, '.').replace(/, taperen tar 3 slurker\./, '.')
     .replace('Høyest taper og tar 5 slurker.', 'Høyest taper.').replace(' Alle zombier tar 2 slurker.', '');
 }
-export function roundPhases(taskId: string, task?: Task, game?: Pick<Game, 'playerSips' | 'gameSips'>): Phase[] {
+/**
+ * The steps of a round, like game_action on the server. With `roundNumber`, the last round leaves out the
+ * standings, since the final results come right after it.
+ */
+export function roundPhases(taskId: string, task?: Task, game?: Pick<Game, 'playerSips' | 'gameSips' | 'taskCount'>, roundNumber?: number): Phase[] {
   const definition = task || tasks[taskId];
   // Mim det and Samme bølgelengde have no separate guessing step: the others play along in the performing step.
-  const phases: Phase[] = definition?.kind === 'challenge' && !['mime', 'wavelength'].includes(definition.answer.method)
-    ? ['assignment', 'guessing', 'performing', 'reveal', 'sips']
-    : ['assignment', 'performing', 'reveal', 'sips'];
-  return game && definition && !sipsEnabled(game, definition) ? phases.filter(p => p !== 'sips') : phases;
+  let phases: Phase[] = definition?.kind === 'challenge' && !['mime', 'wavelength'].includes(definition.answer.method)
+    ? ['assignment', 'guessing', 'performing', 'reveal', 'sips', 'leaderboard']
+    : ['assignment', 'performing', 'reveal', 'sips', 'leaderboard'];
+  if (game && definition && !sipsEnabled(game, definition)) phases = phases.filter(p => p !== 'sips');
+  if (game && roundNumber != null && roundNumber >= game.taskCount) phases = phases.filter(p => p !== 'leaderboard');
+  return phases;
 }

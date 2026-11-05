@@ -34,7 +34,7 @@ before(async () => {
   await db.exec(`create role anon; create role authenticated; create schema auth;
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.user_id',true),'')::uuid$$;`);
   // 002 schedules cleanup with pg_cron, which PGlite does not provide.
-  for (const migration of ['001_game.sql', '003_host_plays.sql', '004_sips_before_leaderboard.sql', '005_more_tasks.sql', '006_would_you_rather_points.sql', '007_more_challenges.sql', '008_top_five_and_second_highest.sql', '009_mime.sql', '010_wavelength.sql', '011_stricter_typos.sql', '012_host_settings.sql', '013_round_plan_and_pace.sql', '014_ten_seconds_fade.sql', '015_capped_position_points.sql', '016_zombie_and_transfer_bonus.sql', '017_player_photos.sql', '018_wyr_smell.sql'])
+  for (const migration of ['001_game.sql', '003_host_plays.sql', '004_sips_before_leaderboard.sql', '005_more_tasks.sql', '006_would_you_rather_points.sql', '007_more_challenges.sql', '008_top_five_and_second_highest.sql', '009_mime.sql', '010_wavelength.sql', '011_stricter_typos.sql', '012_host_settings.sql', '013_round_plan_and_pace.sql', '014_ten_seconds_fade.sql', '015_capped_position_points.sql', '016_zombie_and_transfer_bonus.sql', '017_player_photos.sql', '018_wyr_smell.sql', '019_standings_step.sql'])
     await db.exec(await readFile(new URL(`../supabase/migrations/${migration}`, import.meta.url), 'utf8'));
 });
 after(async () => { await db.close(); });
@@ -89,12 +89,15 @@ test('each sip setting independently removes its step forwards and backwards wit
     assert.deepEqual(game.round.responses.map(q => q.points).sort(), [0, 3, 3, 3]);
     assert.equal(game.round.responses.some(q => q.drinks), gameSips);
     game = await act(game, 'next');
-    // Without a sips step, the reveal is the last step and the next round starts.
+    // Without a sips step, the standings come right after the reveal.
     if (gameSips) {
       assert.equal(game.round.phase, 'sips');
       game = await act(game, 'back'); assert.equal(game.round.phase, 'reveal');
       game = await act(game, 'next'); game = await act(game, 'next');
     }
+    assert.equal(game.round.phase, 'leaderboard');
+    game = await act(game, 'back'); assert.equal(game.round.phase, gameSips ? 'sips' : 'reveal');
+    game = await act(game, 'next'); game = await act(game, 'next');
     assert.equal(game.round.taskId, 'ten_seconds'); assert.equal(game.round.phase, 'assignment');
     game = await act(game, 'next'); game = await act(game, 'next');
     assert.equal(game.round.phase, 'reveal');
@@ -208,7 +211,8 @@ test('start fixes challenge count to active players and displayed total matches 
     while (game.status === 'playing') {
       rounds.add(game.round.id);
       assert.equal(game.taskCount, expectedPlan.length);
-      assert.notEqual(game.round.phase, 'leaderboard');
+      // The standings end every round except the last, where the final results follow.
+      if (game.round.number >= game.taskCount) assert.notEqual(game.round.phase, 'leaderboard');
       assert.ok(game.round.number <= game.taskCount);
       game = await act(game, 'next');
     }
@@ -339,6 +343,8 @@ test('sip recipient is exclusive, winners are immune, countdown task is collecti
   await asPlayer(game, winners[1]);
   await assert.rejects(() => act(game, 'allocate', { recipientId: recipient }), /valgte spilleren først/);
   await identity(0); game = await act(game, 'next');
+  assert.equal(game.round.phase, 'leaderboard');
+  game = await act(game, 'next');
   assert.equal(game.round.phase, 'assignment');
   assert.equal(game.round.performerId, null);
   game = await act(game, 'next');
@@ -483,7 +489,9 @@ async function playChallenge(game: State, actual: number) {
     game = await act(game, 'timer_stop', { value: actual });
   } else game = await act(game, 'manual_result', { value: actual });
   await identity(0);
-  for (let i = 0; i < 3; i++) game = await act(game, 'next');
+  // Reveal, sips, standings (not in the last round), then the next round.
+  const round = game.round.id;
+  while (game.status === 'playing' && game.round.id === round) game = await act(game, 'next');
   return game;
 }
 
@@ -515,7 +523,7 @@ test('a task listed twice is played twice, by a new performer each time', async 
   const first = game.round.performerId;
   game = await playChallenge(game, 12);
   assert.equal(game.round.taskId, 'rps');
-  for (let i = 0; i < 4; i++) game = await act(game, 'next');
+  for (let i = 0; i < 5; i++) game = await act(game, 'next');
   assert.equal(game.round.taskId, 'beer', 'the second copy comes after the everyone-task');
   assert.notEqual(game.round.performerId, first);
   game = await playChallenge(game, 15);
@@ -625,6 +633,8 @@ test('would you rather: the majority scores 3, the minority and non-answerers dr
   assert.equal(game.players.find(p => p.id === p0)!.score, 3);
   game = await act(game, 'next');
   assert.deepEqual(game.round.winners, [], 'the majority does not hand out sips');
+  game = await act(game, 'next');
+  assert.equal(game.round.phase, 'leaderboard');
   game = await act(game, 'next');
   assert.equal(game.round.taskId, 'wyr_beer');
   game = await act(game, 'next');

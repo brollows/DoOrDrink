@@ -3,6 +3,7 @@ import { phaseNames, roundPhases, type Phase } from '../model';
 import type { ConfirmKind } from './ConfirmDialog';
 import { HostControls, PlayerControls } from './GameControls';
 import { AssignmentPhase } from './phases/AssignmentPhase';
+import { LeaderboardPhase } from './phases/LeaderboardPhase';
 import { GuessingPhase } from './phases/GuessingPhase';
 import { PerformingPhase } from './phases/PerformingPhase';
 import { RevealPhase } from './phases/RevealPhase';
@@ -18,8 +19,7 @@ const phaseViews: Record<Phase, ComponentType<PhaseProps>> = {
   performing: PerformingPhase,
   reveal: RevealPhase,
   sips: SipsPhase,
-  // Compatibility for a game already at the old phase when this version loads.
-  leaderboard: SipsPhase,
+  leaderboard: LeaderboardPhase,
 };
 
 type Props = {
@@ -33,8 +33,8 @@ type Props = {
 
 function Stepper({ state }: { state: RoundState }) {
   const { round, task } = state;
-  const phases = roundPhases(round.taskId, task, state.game);
-  const currentIndex = round.phase === 'leaderboard' ? phases.length - 1 : phases.indexOf(round.phase);
+  const phases = roundPhases(round.taskId, task, state.game, round.number);
+  const currentIndex = phases.includes(round.phase) ? phases.indexOf(round.phase) : phases.length - 1;
   return (
     <nav className="stepper" aria-label="Spillsteg" data-step={currentIndex + 1} data-total={phases.length}>
       {phases.map((phase, index) => (
