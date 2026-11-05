@@ -160,7 +160,7 @@ export const tasks: Record<string, Task> = {
     kind: 'everyone', sips: 'losers', answer: { method: 'rps', unit: '', min: 0, max: 0 } },
   top5_sex: topFive('top5_sex', 'Sex', 'Sex'),
   top5_drunk: topFive('top5_drunk', 'Ord for å være full', 'Ord for å være full'),
-  top5_vors: topFive('top5_vors', 'Vorspiel', 'Ting man finner på et vorspiel'),
+  top5_body: topFive('top5_body', 'Ikke i kroppen', 'Ting man ikke putter i kroppen'),
   top5_food: topFive('top5_food', 'Fyllemat', 'Fyllemat'),
   top5_regret: topFive('top5_regret', 'Dagen derpå', 'Ting man angrer på dagen derpå'),
   zombie: { id: 'zombie', title: 'Zombie', description: 'Én blir trukket ut som zombie. Hver runde biter hver zombie ett menneske. Jo lenger du overlever, desto flere poeng. Alle zombier tar 2 slurker.',
