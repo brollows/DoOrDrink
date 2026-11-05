@@ -82,6 +82,9 @@
 .word-entry form{display:grid;gap:10px;margin-top:18px}
 .word-entry input{width:100%;min-height:52px;padding:12px 16px;background:var(--bg);border:1px solid var(--line);border-radius:12px;color:var(--text);font-size:1.1rem}
 .word-entry input::placeholder{color:#6e7182}
+/* Topp 5: a field repeating an earlier word. */
+.word-entry input.repeated{border-color:var(--red)}
+.word-repeated{display:flex;align-items:center;justify-content:center;gap:6px;margin:0;font-size:.85rem;color:var(--red);text-align:center;overflow-wrap:anywhere}
 .top-words{list-style:none;padding:0;margin:22px 0 0;display:grid;gap:8px;text-align:left}
 .top-words li{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--panel-strong);border:1px solid var(--line);border-radius:14px}
 .top-words li.is-me{border-color:#c4f36b66}

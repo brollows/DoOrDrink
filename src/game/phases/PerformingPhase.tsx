@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { Check, Hourglass, RotateCcw } from 'lucide-react';
+import { Check, Hourglass, RotateCcw, X } from 'lucide-react';
 import { Avatar } from '../../components/Avatar';
-import { hands, normalizeWord, sipCount, type Hand } from '../../model';
+import { hands, normalizeWord, sameWord, sipCount, type Hand } from '../../model';
 import { Countdown, useCountdown } from '../Countdown';
 import { Stopwatch } from '../Stopwatch';
 import { HandIcon, TaskIcon } from '../TaskIcon';
@@ -69,7 +69,11 @@ function WordEntry({ state, busy, offline, act }: PhaseProps) {
   const [words, setWords] = useState(() => Array.from({ length: fieldCount }, (_, i) => myResponse?.words?.[i] ?? ''));
   const [sent, setSent] = useState(() => [...(myResponse?.words ?? [])].sort().join());
   const secondsLeft = useCountdown(round.secondsLeft);
-  const normalized = [...new Set(words.map(normalizeWord).filter(Boolean))];
+  // Each word counts once: a field repeating an earlier word (or the same word with a typo) is marked and blocks sending.
+  const fields = words.map(normalizeWord);
+  const repeats = fields.map((word, i) => Boolean(word) && fields.slice(0, i).some(other => other && sameWord(word, other)));
+  const repeated = words.find((_, i) => repeats[i]);
+  const normalized = fields.filter((word, i) => word && !repeats[i]);
   const unsent = normalized.length > 0 && [...normalized].sort().join() !== sent;
   const timeUp = secondsLeft === 0;
   const send = async () => { if (await act('words', { value: normalized })) setSent([...normalized].sort().join()); };
@@ -85,10 +89,13 @@ function WordEntry({ state, busy, offline, act }: PhaseProps) {
       <form onSubmit={event => { event.preventDefault(); void send(); }}>
         {words.map((word, index) => (
           <input key={index} aria-label={`Ord ${index + 1}`} placeholder={`Ord ${index + 1}`} value={word} maxLength={24}
+            className={repeats[index] ? 'repeated' : ''} aria-invalid={repeats[index] || undefined}
+            aria-describedby={repeats[index] ? 'repeated-word' : undefined}
             autoCapitalize="none" autoComplete="off" autoCorrect="off" spellCheck={false} disabled={timeUp}
             onChange={event => { const value = event.target.value.replace(/\s/g, ''); setWords(current => current.map((w, i) => i === index ? value : w)); }} />
         ))}
-        <button className="button primary wide" disabled={busy || offline || timeUp || !unsent}>
+        {repeated && !timeUp && <p id="repeated-word" className="word-repeated" role="alert"><X size={16} /> «{repeated}» er allerede skrevet.</p>}
+        <button className="button primary wide" disabled={busy || offline || timeUp || !unsent || Boolean(repeated)}>
           {sent ? unsent ? 'Oppdater ordene' : <><Check size={19} /> Ordene er sendt</> : 'Send ordene'}
         </button>
       </form>
