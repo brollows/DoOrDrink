@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Game } from './model';
-import { createDemo, demoAction, demoState } from './demo';
+import { createDemo, demoAction, demoPhotos, demoState } from './demo';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const publicKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -61,8 +61,18 @@ export async function fetchGame(sessionId: string, playerId?: string) {
 }
 export async function performAction(game: Game, action: string, payload: Record<string, unknown> = {}) {
   const values = { ...payload, roundId: game.round?.id, phase: game.round?.phase };
-  return game.id === 'demo' ? demoAction(action, values, game.meId)
-    : rpc('game_action', { p_session: game.id, p_action: action, p_payload: values });
+  if (game.id === 'demo') return demoAction(action, values, game.meId);
+  // Profile photos have their own function: `value` is a JPEG data URL, or null to remove the photo.
+  if (action === 'photo') return rpc('set_photo', { p_session: game.id, p_photo: payload.value ?? null });
+  return rpc('game_action', { p_session: game.id, p_action: action, p_payload: values });
+}
+/** The photos of the given players, as {playerId: dataUrl}. Players without a photo are left out. */
+export async function fetchPhotos(sessionId: string, playerIds: string[]): Promise<Record<string, string>> {
+  if (sessionId === 'demo') return demoPhotos(playerIds);
+  await authenticate();
+  const { data, error } = await supabase!.rpc('player_photos', { p_session: sessionId, p_players: playerIds });
+  if (error) throw new Error(error.message);
+  return (data ?? {}) as Record<string, string>;
 }
 export function watchGame(sessionId: string, refresh: () => void) {
   if (sessionId === 'demo') {

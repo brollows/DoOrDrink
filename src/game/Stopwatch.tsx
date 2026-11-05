@@ -71,7 +71,6 @@ export function Stopwatch({ game, response, busy, act }: Props) {
     <div className="timer-done">
       <span className="large-icon"><Check size={38} /></span>
       <h2>{failedStop !== null ? 'Tiden må lagres' : 'Ferdig!'}</h2>
-      <p className="muted">{task.kind === 'everyone' ? 'Resultatet ditt avsløres på fasiten.' : 'De andre ser tiden når verten viser fasiten.'}</p>
       {task.kind === 'challenge' && response.actual !== null && <div className="private-result"><span>Bare du ser dette</span><strong>{formatTime(response.actual)} s</strong></div>}
       {failedStop !== null && <button className="button secondary" disabled={busy} onClick={retryStop}>Prøv å lagre igjen</button>}
     </div>
@@ -82,14 +81,15 @@ export function Stopwatch({ game, response, busy, act }: Props) {
   const hidden = task.kind === 'everyone' && running && elapsed >= hideAfter;
   return (
     <div className="stopwatch">
-      <span className="eyebrow">{task.kind === 'everyone' ? 'SIKT PÅ 10,00 SEKUNDER' : 'DIN STOPPEKLOKKE'}</span>
+      {/* Group tasks need the target here: on phones the task title is hidden while the stopwatch shows. */}
+      {task.kind === 'everyone' && <span className="eyebrow">SIKT PÅ {formatTime(task.answer.target ?? 0)} SEKUNDER</span>}
       <div className={`timer-value ${running ? 'running' : ''} ${hidden ? 'faded' : ''}`} aria-hidden={hidden || undefined}>{formatTime(elapsed)}<span>sekunder</span></div>
       <button className={`button timer-button ${running ? 'stop' : 'primary'}`} disabled={busy || round.awarded}
         onClick={() => running ? void stop(Math.max(0, (Date.now() - localStart) / 1000)) : void start()}>
         {running ? <span className="stop-square" /> : <Play size={22} fill="currentColor" />}
         {running ? 'Stopp' : 'Start timer'}
       </button>
-      <p className="muted">{task.kind === 'everyone' ? 'Tiden forsvinner etter 3 sekunder. Etter 20 sekunder blir det 0 poeng.' : 'Trykk start når du begynner, og stopp når du er ferdig.'}</p>
+      <p className="muted">{task.kind === 'everyone' ? `Tiden forsvinner etter ${hideAfter} sekunder.` : task.id === 'beer' ? 'Stopp når ølen er tom.' : 'Stopp når du er ferdig.'}</p>
       {round.awarded && <p className="muted">Runden er allerede avsluttet. Resultatet er låst.</p>}
     </div>
   );

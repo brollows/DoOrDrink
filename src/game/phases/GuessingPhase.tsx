@@ -1,24 +1,28 @@
 import { useState, type CSSProperties } from 'react';
 import { Check, Hourglass } from 'lucide-react';
-import { formatAnswer, guessQuestion } from '../../model';
+import { formatAnswer } from '../../model';
 import type { PhaseProps } from './types';
 
 /** Step 2 (challenges): everyone except the performer guesses the result. */
 export function GuessingPhase({ state, busy, offline, act }: PhaseProps) {
   const { me, round, task, performer, myResponse } = state;
+  const isPerformer = me.id === round.performerId;
+  const name = performer?.name ?? '';
   const { min, max, unit, step = 0.1 } = task.answer;
   // Start in the middle, on a value the slider can actually land on.
   const [guess, setGuess] = useState(() => Number((min + Math.round((max - min) / 2 / step) * step).toFixed(6)));
 
   return <>
     {!myResponse?.submitted && <>
-      <span className="eyebrow">HVA TROR DU?</span>
-      <h1>{task.answer.method === 'stopwatch' ? 'Hvor rask er' : 'Gjett svaret til'}<br /><span className="lime">{performer?.name}?</span></h1>
-      <p className="task-description">{guessQuestion(task, performer?.name ?? '')}</p>
+      {/* The heading alone asks the question, with the performer's name in lime. */}
+      {isPerformer ? <h1>{task.title}</h1>
+        : task.answer.method === 'stopwatch' ? <h1>Hvor rask er<br /><span className="lime">{name}?</span></h1>
+        : task.guessQuestion ? <h1 className="guess-question">{task.guessQuestion.split('{name}').map((part, i) => <span key={i}>{i > 0 && <span className="lime">{name}</span>}{part}</span>)}</h1>
+        : <h1>Gjett svaret til<br /><span className="lime">{name}?</span></h1>}
     </>}
 
-    {me.id === round.performerId ? (
-      <div className="waiting"><Hourglass size={20} /> De andre gjetter. Snart er det din tur.</div>
+    {isPerformer ? (
+      <div className="waiting"><Hourglass size={20} /> {task.answer.method === 'stopwatch' ? 'De andre gjetter tiden din.' : 'De andre gjetter svaret ditt.'}</div>
     ) : !myResponse ? (
       <div className="waiting"><Hourglass size={20} /> Spillerne gjetter på mobilen sin.</div>
     ) : myResponse.submitted ? (
@@ -26,7 +30,7 @@ export function GuessingPhase({ state, busy, offline, act }: PhaseProps) {
         <span className="large-icon"><Check size={30} /></span>
         <h2>Svaret er levert</h2>
         <strong>{formatAnswer(myResponse.guess!, task)} <small>{unit}</small></strong>
-        <p className="muted">Venter på at verten går videre.</p>
+        <p className="muted">Venter på de andre.</p>
       </div>
     ) : (
       <div className="guess-controls">

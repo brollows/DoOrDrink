@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { Check, Copy, Crown, Dices, Hourglass, Play, Trophy, Users } from 'lucide-react';
-import { Avatar } from '../components/Avatar';
+import { Avatar, PhotoContext } from '../components/Avatar';
+import { PhotoPicker } from '../components/PhotoPicker';
+import { savePhoto } from '../photo';
 import { joinUrl, QrCode } from '../components/QrCode';
 import { participants, type Game } from '../model';
 import type { Act } from './useGame';
@@ -50,6 +52,8 @@ function JoinPanel({ code, onError }: { code: string; onError: Props['onError'] 
 /** Waiting room before the game starts: how to join, and who is in. */
 export function Lobby({ game, isHost, busy, offline, act, onError }: Props) {
   const playerCount = participants(game).length;
+  const me = game.players.find(p => p.id === game.meId)!;
+  const myPhoto = useContext(PhotoContext)[me.id] ?? null;
 
   return (
     <main className="lobby-main">
@@ -71,6 +75,11 @@ export function Lobby({ game, isHost, busy, offline, act, onError }: Props) {
 
       <section className="players-card">
         <div className="section-title"><h2>Gjengen</h2><span className="pill">{playerCount} spillere</span></div>
+        <div className="my-photo">
+          <span className="eyebrow">DITT BILDE</span>
+          <PhotoPicker player={me} photo={myPhoto} disabled={busy || offline} onError={onError}
+            onChange={async value => { if (await act('photo', { value })) savePhoto(value); }} />
+        </div>
         {isHost && <p className="muted">Huk av de som bare skal se på. Spectators får ikke oppgaver, poeng eller slurker. Du kan også velge deg selv.</p>}
         <div className="player-list">
           {game.players.map(p => (

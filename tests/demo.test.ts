@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createDemo, demoAction, demoState } from '../src/demo';
+import { createDemo, demoAction, demoPhotos, demoState } from '../src/demo';
 import { participants, sipGiverCount } from '../src/model';
 
 test('demo mirrors participant-scaled givers, exclusive recipients and final-only standings', () => {
@@ -52,6 +52,39 @@ test('demo mirrors participant-scaled givers, exclusive recipients and final-onl
       assert.equal(game.status, 'finished');
       assert.deepEqual(game.players.map(p => p.score), scores);
     }
+  } finally {
+    if (original) Object.defineProperty(globalThis, 'localStorage', original);
+    else Reflect.deleteProperty(globalThis, 'localStorage');
+  }
+});
+
+test('demo profile photos mirror set_photo: own photo, versions, removal, locked after the start', () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  const storage = new Map<string, string>();
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => storage.set(key, value),
+    removeItem: (key: string) => storage.delete(key),
+  } });
+  try {
+    let game = createDemo('Host');
+    const photo = 'data:image/jpeg;base64,' + 'A'.repeat(100);
+    const other = game.players[1].id;
+    game = demoAction('photo', { value: photo }, other);
+    const version = game.players.find(p => p.id === other)!.photo!;
+    assert.ok(version);
+    assert.equal(game.players.find(p => p.id === game.hostId)!.photo, null);
+    assert.ok(!JSON.stringify(game).includes('AAAA'), 'the game state only carries the version');
+    assert.deepEqual(demoPhotos([other, game.hostId]), { [other]: photo });
+    assert.throws(() => demoAction('photo', { value: 'data:image/png;base64,AAAA' }, other), /kunne ikke lagres/);
+    game = demoAction('photo', { value: photo + 'B' }, other);
+    assert.ok(game.players.find(p => p.id === other)!.photo! > version);
+    game = demoAction('photo', { value: null }, other);
+    assert.equal(game.players.find(p => p.id === other)!.photo, null);
+    game = demoAction('start', {}, game.hostId);
+    assert.throws(() => demoAction('photo', { value: photo }, other), /før spillet starter/);
+    createDemo('Host');
+    assert.deepEqual(demoPhotos([other]), {}, 'a new demo starts without photos');
   } finally {
     if (original) Object.defineProperty(globalThis, 'localStorage', original);
     else Reflect.deleteProperty(globalThis, 'localStorage');

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Hourglass, WifiOff } from 'lucide-react';
 import { leaveDevice } from '../api';
+import { PhotoContext } from '../components/Avatar';
 import { Brand } from '../components/Brand';
 import { ErrorMessage } from '../components/ErrorMessage';
 import { ConfirmDialog, type ConfirmKind } from '../game/ConfirmDialog';
@@ -11,12 +12,14 @@ import { Lobby } from '../game/Lobby';
 import { getRoundState } from '../game/roundState';
 import { RoundView } from '../game/RoundView';
 import { useGame, type Act } from '../game/useGame';
+import { usePlayerPhotos } from '../game/usePlayerPhotos';
 
 export default function GamePage() {
   const { sessionId = '' } = useParams();
   const navigate = useNavigate();
   const { game, error, setError, busy, offline, act: send, refresh, switchPlayer } = useGame(sessionId);
   const [confirm, setConfirm] = useState<ConfirmKind | null>(null);
+  const photos = usePlayerPhotos(game);
 
   // A pending confirmation no longer applies once the step changes or an action succeeds.
   useEffect(() => setConfirm(null), [game?.round?.id, game?.round?.phase]);
@@ -45,6 +48,7 @@ export default function GamePage() {
     && roundState.myResponse?.zombieRound != null;
 
   return (
+    <PhotoContext.Provider value={photos}>
     <div className={`game-layout status-${game.status} ${drinkMode ? 'drink-mode' : ''} ${zombieMode ? 'zombie-mode' : ''}`}>
       <GameHeader game={game} me={me} isHost={isHost} />
       {game.id === 'demo' && <DemoBar game={game} onSwitchPlayer={id => void switchPlayer(id)} />}
@@ -58,5 +62,6 @@ export default function GamePage() {
       {confirm && <ConfirmDialog kind={confirm} phase={game.round?.phase} busy={busy}
         onConfirm={() => void act(confirm)} onCancel={() => setConfirm(null)} />}
     </div>
+    </PhotoContext.Provider>
   );
 }

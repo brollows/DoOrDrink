@@ -12,7 +12,6 @@ export function AssignmentPhase({ state, busy, offline, act }: PhaseProps) {
 
   return <>
     <span className="task-icon"><TaskIcon task={task} size={30} /></span>
-    <span className="eyebrow">{performer ? `${performer.name.toUpperCase()} SIN TUR` : 'EN UTFORDRING FOR ALLE'}</span>
     <h1>{task.title}</h1>
     <p className="task-description">{taskDescription(task, game)}</p>
 
@@ -26,7 +25,7 @@ export function AssignmentPhase({ state, busy, offline, act }: PhaseProps) {
     {performer && (
       <div className="performer-card">
         <Avatar player={performer} />
-        <div><strong>{performer.name}</strong><span>{task.answer.method === 'wavelength' ? 'Fasiten: 1 poeng per spiller som svarer likt på alle 5'
+        <div><strong>{performer.name}</strong><span>{task.answer.method === 'wavelength' ? 'Er fasiten denne runden'
           : round.transferred ? `+${completionPoints(round.transfers ?? 1)} poeng for å ta over` : `+${completionPoints(0)} poeng for å fullføre`}</span></div>
       </div>
     )}

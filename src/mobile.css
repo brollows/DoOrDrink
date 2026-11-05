@@ -11,6 +11,9 @@
   .entry-card form { margin-top: 18px; }
   .entry-card input { min-height: 48px; padding: 12px 14px; margin-bottom: 15px; }
   .entry-card label { margin-bottom: 7px; }
+  .photo-field { margin-bottom: 15px; }
+  .photo-field > legend { margin-bottom: 7px; }
+  .avatar.photo-preview { width: 64px; height: 64px; border-radius: 18px; }
   .entry-footer { padding-top: 12px; margin-top: 16px; }
   .home-footer { gap: 18px; padding: 15px 0 calc(15px + env(safe-area-inset-bottom)); }
   .home-footer > span { display: none; }
@@ -30,12 +33,14 @@
   .demo-bar { margin: 0; padding: 4px 8px; min-height: 40px; }
   .demo-bar select { min-height: 30px; }
   .round-top { margin: 0; min-height: 26px; }
-  .round-top > .pill { padding: 5px 8px; }
   .stepper { margin: 0; min-height: 20px; justify-content: flex-start; gap: 5px; align-items: center; font-size: .75rem; color: var(--muted); }
   .stepper::before { content: 'Steg ' attr(data-step) ' av ' attr(data-total) ' ·'; }
   .stepper > div { flex: none; gap: 0; }
   .stepper > div:not(.current), .stepper > div > span { display: none; }
   .stepper small { font-size: .75rem; line-height: 1.1; }
+  /* Round number left, current step right, on one line. */
+  .round-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 26px; }
+  .round-head > .round-top, .round-head > .stepper { min-height: 0; }
   .round-main {
     grid-template-rows: auto;
     gap: 10px;
@@ -50,6 +55,7 @@
   }
   .round-card > * { flex-shrink: 0; }
   .round-card h1 { font-size: 2rem; }
+  .round-card h1.guess-question { font-size: 1.5rem; }
   .round-card > .eyebrow { margin-bottom: 9px; }
   .round-card .task-description { margin: 12px auto 16px; line-height: 1.5; }
   .phase-assignment, .phase-guessing, .phase-performing { justify-content: safe center; }
@@ -112,7 +118,6 @@
   .recipient-list h3 { flex-shrink: 0; margin-bottom: 10px; }
   .recipient-options { overflow: visible; }
   .recipient-button { min-height: 50px; padding: 8px 10px; margin-bottom: 8px; }
-  .immune-note { margin-top: 12px; line-height: 1.4; }
   .hand-buttons { gap: 8px; margin-top: 14px; }
   .hand-button { min-height: 92px; padding: 12px 4px; border-radius: 14px; }
   .option-buttons { gap: 9px; margin-top: 14px; }
@@ -190,6 +195,8 @@
   .finished-main { flex: 1; min-height: 0; margin: 10px 0 0; padding-bottom: calc(14px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; }
   .finished-main > :not(.ranking) { flex-shrink: 0; }
   .finished-main h1 { font-size: 2rem; margin-top: 10px; }
+  .winner-photos { margin-top: 18px; }
+  .avatar.avatar-winner { width: 112px; height: 112px; border-radius: 32px; font-size: 2.8rem; }
   .finished-main > .button { margin-top: 14px; }
   .drink-mode .round-main { display: flex; }
   .drink-mode .round-card { min-height: 0; flex: 1; justify-content: center; }
@@ -197,7 +204,6 @@
   .drink-content > svg { width: 46px; height: 46px; margin: 0 0 20px; }
   .drink-content h1 { font-size: 4rem; }
   .drink-content > .eyebrow { margin-bottom: 16px; }
-  .drink-content p { margin: 18px 0; }
   .modal { max-height: calc(100dvh - 48px); overflow-y: auto; }
   .game-layout > .error, .game-layout > .offline { margin: 0; padding: 10px 12px; }
 }
@@ -206,6 +212,7 @@
   .game-layout { gap: 7px; }
   .game-header { min-height: 52px; padding: 6px 0; }
   .stepper { min-height: 20px; }
+  .avatar.avatar-winner { width: 92px; height: 92px; border-radius: 26px; font-size: 2.3rem; }
   .round-card { padding: 14px; }
   .round-card h1 { font-size: 1.8rem; }
   .task-description { font-size: .85rem; }
@@ -219,7 +226,6 @@
   .spectator > .avatar { width: 44px; height: 44px; font-size: 1.2rem; border-radius: 14px; margin-bottom: 10px; }
   .spectator h2 { font-size: 1.15rem; }
   .spectator p { margin: 8px auto 10px; line-height: 1.4; }
-  .locked-result { padding: 9px 12px; }
   .performer-card { margin-bottom: 10px; }
   .giver-list { gap: 5px; margin-bottom: 9px; }
   .giver { min-height: 40px; }

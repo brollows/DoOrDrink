@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Dices, Play, Radio, Timer, Trophy, Users } from 'lucide-react';
-import { configured, createGame, joinGame, membership } from '../api';
+import { configured, createGame, joinGame, membership, performAction } from '../api';
 import { Brand } from '../components/Brand';
 import { ErrorMessage } from '../components/ErrorMessage';
+import { PhotoPicker } from '../components/PhotoPicker';
+import { savedPhoto, savePhoto } from '../photo';
 
 type Mode = 'create' | 'join';
 
@@ -15,6 +17,7 @@ export default function HomePage() {
   const [mode, setMode] = useState<Mode>(linkedCode ? 'join' : 'create');
   const [name, setName] = useState(saved?.name || '');
   const [code, setCode] = useState(linkedCode);
+  const [photo, setPhoto] = useState(savedPhoto);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -24,6 +27,8 @@ export default function HomePage() {
     setBusy(true); setError('');
     try {
       const game = mode === 'join' ? await joinGame(code, name) : await createGame(name);
+      // The photo is optional: if it fails, the player can add it again in the waiting room.
+      if (photo) await performAction(game, 'photo', { value: photo }).catch(() => undefined);
       navigate(`/game/${game.id}`);
     } catch (error) { setError((error as Error).message); }
     finally { setBusy(false); }
@@ -68,6 +73,11 @@ export default function HomePage() {
           <form onSubmit={event => { event.preventDefault(); void submit(); }}>
             <label htmlFor="name">Hva heter du?</label>
             <input id="name" placeholder="Navnet ditt" autoComplete="given-name" maxLength={24} value={name} onChange={e => setName(e.target.value)} required autoFocus={Boolean(linkedCode)} />
+            <fieldset className="photo-field">
+              <legend>Profilbilde <span className="muted">(valgfritt)</span></legend>
+              <PhotoPicker player={{ id: 'me', name }} photo={photo} disabled={busy} onError={setError}
+                onChange={value => { setPhoto(value); savePhoto(value); setError(''); }} />
+            </fieldset>
             {mode === 'join' && <>
               <label htmlFor="code">Spillkode</label>
               <input id="code" className="code-input" placeholder="000000" inputMode="numeric" autoComplete="off" pattern="[0-9]{6}" maxLength={6}

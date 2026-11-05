@@ -34,7 +34,7 @@ before(async () => {
   await db.exec(`create role anon; create role authenticated; create schema auth;
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.user_id',true),'')::uuid$$;`);
   // 002 schedules cleanup with pg_cron, which PGlite does not provide.
-  for (const migration of ['001_game.sql', '003_host_plays.sql', '004_sips_before_leaderboard.sql', '005_more_tasks.sql', '006_would_you_rather_points.sql', '007_more_challenges.sql', '008_top_five_and_second_highest.sql', '009_mime.sql', '010_wavelength.sql', '011_stricter_typos.sql', '012_host_settings.sql', '013_round_plan_and_pace.sql', '014_ten_seconds_fade.sql', '015_capped_position_points.sql', '016_zombie_and_transfer_bonus.sql'])
+  for (const migration of ['001_game.sql', '003_host_plays.sql', '004_sips_before_leaderboard.sql', '005_more_tasks.sql', '006_would_you_rather_points.sql', '007_more_challenges.sql', '008_top_five_and_second_highest.sql', '009_mime.sql', '010_wavelength.sql', '011_stricter_typos.sql', '012_host_settings.sql', '013_round_plan_and_pace.sql', '014_ten_seconds_fade.sql', '015_capped_position_points.sql', '016_zombie_and_transfer_bonus.sql', '017_player_photos.sql'])
     await db.exec(await readFile(new URL(`../supabase/migrations/${migration}`, import.meta.url), 'utf8'));
 });
 after(async () => { await db.close(); });
@@ -959,4 +959,38 @@ test('Zombie: with two players the game is over as soon as the first zombie is d
   assert.equal(game.round.phase, 'reveal');
   const responses = zombieResponses(game);
   assert.deepEqual(responses.map(q => q.points).sort(), [1, 3]);
+});
+
+test('profile photos: only your own, only before the start, and game_state only carries a version', async () => {
+  let game = await create(3, ['height']);
+  const photo = 'data:image/jpeg;base64,' + 'A'.repeat(400);
+  const versionOf = (state: State, id: string) => (state.players.find(p => p.id === id) as { photo?: number | null }).photo ?? null;
+  game = await rpc('set_photo', [game.id, photo]);
+  const first = versionOf(game, game.hostId);
+  assert.ok(first, 'the host has a photo version');
+  assert.ok(!JSON.stringify(game).includes('AAAA'), 'game_state never contains the photo itself');
+  const otherId = game.players[1].id;
+  assert.equal(versionOf(game, otherId), null);
+
+  // Anyone in the game can fetch the photos; outsiders cannot.
+  await identity(1);
+  const photos = await rpc('player_photos', [game.id, [game.hostId, otherId]]) as unknown as Record<string, string>;
+  assert.deepEqual(photos, { [game.hostId]: photo });
+  await identity(39);
+  await assert.rejects(() => rpc('player_photos', [game.id, [game.hostId]]), /finnes ikke/);
+
+  // Only JPEG data URLs of a sensible size are accepted.
+  await identity(0);
+  await assert.rejects(() => rpc('set_photo', [game.id, 'data:image/svg+xml;base64,AAAA']), /kunne ikke lagres/);
+  await assert.rejects(() => rpc('set_photo', [game.id, 'data:image/jpeg;base64,' + 'A'.repeat(120000)]), /kunne ikke lagres/);
+
+  // Changing gives a new version; removing clears it.
+  game = await rpc('set_photo', [game.id, photo.replace(/A$/, 'B')]);
+  assert.ok(versionOf(game, game.hostId)! > first!);
+  game = await rpc('set_photo', [game.id, null]);
+  assert.equal(versionOf(game, game.hostId), null);
+
+  // Locked once the game has started.
+  game = await act(game, 'start');
+  await assert.rejects(() => rpc('set_photo', [game.id, photo]), /før spillet starter/);
 });

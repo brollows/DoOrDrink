@@ -34,6 +34,16 @@ type DemoGame = Game & {
   usedQuestions?: number[];
 };
 const key = "do-or-drink-demo";
+/** Profile photos are kept apart from the game, like player_photos on the server: {playerId: {photo, version}}. */
+const photoKey = "do-or-drink-demo-photos";
+type DemoPhotos = Record<string, { photo: string; version: number }>;
+const readPhotos = (): DemoPhotos => JSON.parse(localStorage.getItem(photoKey) || "{}");
+
+/** The photos of the given players, as {playerId: dataUrl}, like player_photos on the server. */
+export function demoPhotos(playerIds: string[]): Record<string, string> {
+  const photos = readPhotos();
+  return Object.fromEntries(playerIds.filter((id) => photos[id]).map((id) => [id, photos[id].photo]));
+}
 const uuid = () => crypto.randomUUID();
 const pick = <T,>(items: T[]) =>
   items[Math.floor(Math.random() * items.length)];
@@ -85,6 +95,7 @@ export function createDemo(name: string, options: { tasks?: string[]; test?: boo
     declined: [],
   };
   save(game);
+  localStorage.setItem(photoKey, "{}");
   return game;
 }
 
@@ -93,6 +104,8 @@ export function demoState(meId?: string): Game {
   const game = structuredClone(read());
   if (game.status === 'lobby') game.taskCount = plannedTasks(game.taskOrder, participants(game).length).length;
   if (meId && game.players.some((p) => p.id === meId)) game.meId = meId;
+  const photos = readPhotos();
+  game.players.forEach((p) => { p.photo = photos[p.id]?.version ?? null; });
   game.selectedTasks = game.meId === game.hostId ? [...game.taskOrder] : undefined;
   const round = game.round;
   const { timeout, method } = round ? tasks[round.taskId].answer : { timeout: 0, method: "" };
@@ -505,6 +518,16 @@ export function demoAction(
         game.taskCount = game.taskOrder.length;
       }
     }
+  } else if (action === "photo") {
+    // Like set_photo on the server: your own photo, before the start; null removes it.
+    if (game.status !== "lobby") throw new Error("Bildet kan bare endres før spillet starter.");
+    const photo = payload.value;
+    if (photo !== null && (typeof photo !== "string" || photo.length > 120000 || !/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(photo)))
+      throw new Error("Bildet kunne ikke lagres.");
+    const photos = readPhotos();
+    if (photo === null) delete photos[meId];
+    else photos[meId] = { photo, version: Math.max(Date.now(), (photos[meId]?.version ?? 0) + 1) };
+    localStorage.setItem(photoKey, JSON.stringify(photos));
   } else if (action === "end") game.status = "finished";
   else {
     if (!r || game.status !== "playing" || payload.roundId !== r.id)

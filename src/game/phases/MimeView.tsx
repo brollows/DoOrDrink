@@ -57,7 +57,7 @@ function WordPicker({ state, busy, offline, act, onDone }: PhaseProps & { onDone
   const choose = async (value: string) => { if (await act('mime_word', { value })) onDone(); };
   return (
     <div className="mime">
-      <p className="task-description">Velg et ord å mime, eller finn på et selv. <strong>Bare ett ord.</strong></p>
+      <p className="task-description">Velg et ord, eller skriv ditt eget.</p>
       <div className="mime-suggestions">
         {mimeSuggestions(round.id).map(({ level, word: suggestion }) => (
           <button key={level} className="option-button" aria-label={`${level}: ${suggestion}`} disabled={disabled} onClick={() => void choose(suggestion)}>
@@ -68,7 +68,6 @@ function WordPicker({ state, busy, offline, act, onDone }: PhaseProps & { onDone
       <form className="mime-form" onSubmit={event => { event.preventDefault(); void choose(word); }}>
         <label htmlFor="mime-word">Eget ord</label>
         <input id="mime-word" placeholder="Ett ord" value={word} {...wordInputProps} onChange={event => setWord(oneWord(event.target.value))} />
-        <p className="muted word-hint">Ett ord, uten mellomrom. De andre ser ikke ordet.</p>
         <button className="button secondary wide" disabled={disabled || !word}>Bruk dette ordet</button>
       </form>
     </div>
@@ -89,10 +88,10 @@ function Performer(props: PhaseProps) {
       <div className="private-result mime-word"><span>Ditt ord</span><strong>{round.word}</strong></div>
       {started ? <>
         <CorrectSoFar state={state} />
-        {seconds === 0 ? <div className="waiting" role="status"><Hourglass size={19} /> Tiden er ute. Verten går videre til fasiten.</div>
+        {seconds === 0 ? <div className="waiting" role="status"><Hourglass size={19} /> Tiden er ute.</div>
           : <p className="muted">Ikke si noe. Bare mim!</p>}
       </> : <>
-        <p className="muted">Når du trykker start, har de andre 120 sekunder på å gjette. Ikke si noe, bare mim!</p>
+        <p className="muted">De andre har {state.task.answer.timeout} sekunder på å gjette.</p>
         <div className="choice-buttons">
           <button className="button primary wide timer-button" disabled={busy || offline || round.awarded} onClick={() => void act('mime_start')}><Play size={21} /> Start mimingen</button>
           <button className="button secondary wide" disabled={busy || offline} onClick={() => setPicking(true)}><RefreshCw size={18} /> Bytt ord</button>
@@ -121,7 +120,7 @@ function Guesser({ state, busy, offline, act, refresh }: PhaseProps) {
     <div className="mime">
       <span className="large-icon"><Drama size={34} /></span>
       <h2>{performer?.name} velger et ord …</h2>
-      <p className="muted">Når mimingen starter, har du 120 sekunder. Svaret er <strong>ett ord</strong>, og du kan gjette så mange ganger du vil.</p>
+      <p className="muted">Du kan gjette så mange ganger du vil.</p>
     </div>
   );
   if (myResponse!.finished) return (
@@ -129,7 +128,6 @@ function Guesser({ state, busy, offline, act, refresh }: PhaseProps) {
       <span className="large-icon"><Check size={30} /></span>
       <h2>Riktig!</h2>
       <strong>{formatTime(myResponse!.actual ?? 0)} <small>sekunder</small></strong>
-      <p className="muted">Så lang tid brukte du. Raskest får mest poeng.</p>
       <CorrectSoFar state={state} />
     </div>
   );
@@ -137,12 +135,12 @@ function Guesser({ state, busy, offline, act, refresh }: PhaseProps) {
     <div className="mime">
       <Countdown seconds={seconds} />
       <LetterHint round={round} seconds={seconds} />
-      {timeUp ? <div className="waiting" role="status"><Hourglass size={19} /> Tiden er ute. Ordet avsløres på fasiten.</div> : (
+      {timeUp ? <div className="waiting" role="status"><Hourglass size={19} /> Tiden er ute.</div> : (
         <form className="mime-form" onSubmit={event => { event.preventDefault(); void send(); }}>
           <input ref={input} aria-label="Ditt svar" placeholder="Ett ord" value={guess} enterKeyHint="send" {...wordInputProps}
             onChange={event => { setGuess(oneWord(event.target.value)); setWrong(null); }} />
           {wrong ? <p className="mime-wrong" role="status"><X size={16} /> «{wrong}» er feil. Prøv igjen.</p>
-            : <p className="muted word-hint">Svaret er ett ord. Store og små bokstaver spiller ingen rolle.</p>}
+            : null}
           <button className="button primary wide" disabled={busy || offline || !guess}>Gjett</button>
         </form>
       )}
@@ -160,7 +158,6 @@ function Watcher({ state, refresh }: PhaseProps) {
     <div className="mime">
       <span className="large-icon"><Drama size={34} /></span>
       <h2>{performer?.name} velger et ord …</h2>
-      <p className="muted">De andre gjetter på mobilen sin når mimingen starter.</p>
     </div>
   );
   return (

@@ -1,5 +1,9 @@
 export type Phase = 'assignment' | 'guessing' | 'performing' | 'reveal' | 'sips' | 'leaderboard';
-export type Player = { id: string; name: string; score: number; completed: boolean; spectator?: boolean };
+export type Player = {
+  id: string; name: string; score: number; completed: boolean; spectator?: boolean;
+  /** Version of the player's profile photo, null without one. The photo itself is fetched with fetchPhotos. */
+  photo?: number | null;
+};
 export type Response = {
   playerId: string; submitted: boolean; guess: number | null; actual: number | null;
   startedAt: string | null; finished: boolean; points: number; rank: number | null;
@@ -275,9 +279,6 @@ export function plannedTasks(order: string[], playerCount: number) {
 /** Leave at least one non-immune player who will not receive sips. */
 export function sipGiverCount(playerCount: number) {
   return playerCount < 3 ? 0 : playerCount < 5 ? 1 : playerCount < 7 ? 2 : 3;
-}
-export function guessQuestion(task: Task, name: string) {
-  return task.guessQuestion?.replace('{name}', name) || `Oppgi ditt tips i ${task.answer.unit}.`;
 }
 /** Players who take part in rounds: everyone, except a host who only runs the game. */
 export function participants(game: Game): Player[] {

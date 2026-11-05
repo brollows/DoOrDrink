@@ -46,7 +46,6 @@ export function WavelengthView({ state, busy, offline, act }: PhaseProps) {
           <Avatar player={performer} />
           <div>
             <strong>{isPerformer ? 'Du er fasiten' : `Svar likt som ${performer.name}`}</strong>
-            <span>{isPerformer ? 'De andre prøver å svare likt som deg' : `${performer.name} er fasiten`}</span>
           </div>
         </div>
       )}
@@ -76,13 +75,13 @@ export function WavelengthView({ state, busy, offline, act }: PhaseProps) {
           : out ? <p className="wl-note">Du er ute. Du fikk {wlStreak(myResponse?.answers, fasit, step)} poeng.</p>
           : myResponse ? <p className="wl-note hit"><Check size={18} /> Likt! Du er fortsatt med.</p> : null}
         <QuestionResult state={state} />
-        {done ? <div className="waiting" role="status"><Check size={19} /> Runden er ferdig. {isHost ? 'Gå videre til fasiten.' : 'Verten går videre til fasiten.'}</div>
+        {done ? <div className="waiting" role="status"><Check size={19} /> Runden er ferdig.</div>
           : isHost ? <button className="button primary wide wl-next" disabled={disabled} onClick={() => void act('wl_next', { step })}>Neste spørsmål</button>
-          : <div className="waiting"><Hourglass size={19} /> Venter på at verten viser neste spørsmål.</div>}
+          : <div className="waiting"><Hourglass size={19} /> Venter på neste spørsmål.</div>}
       </> : <>
-        {out ? <div className="waiting"><X size={19} /> Du er ute. Du fikk {wlStreak(myResponse?.answers, fasit, step)} poeng. Følg med på de andre!</div>
+        {out ? <div className="waiting"><X size={19} /> Du er ute. Du fikk {wlStreak(myResponse?.answers, fasit, step)} poeng.</div>
           : myAnswer !== null ? <div className="waiting" role="status"><Check size={19} /> Svaret er låst. {answered}/{required.length} har svart.</div>
-          : <p className="muted wl-hint">{isPerformer ? 'Svar ærlig. De andre ser ikke svaret ditt før alle har svart.' : 'Svarer du ulikt, er du ute.'}</p>}
+          : <p className="muted wl-hint">{isPerformer ? 'Svar ærlig.' : 'Svarer du ulikt, er du ute.'}</p>}
         {isHost && fasit[step] != null && answered < required.length && (
           <button className="button secondary wide wl-next" disabled={disabled} onClick={() => void act('wl_reveal', { step })}><Eye size={18} /> Vis svaret nå</button>
         )}

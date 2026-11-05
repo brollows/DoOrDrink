@@ -15,15 +15,13 @@ function drinkReason(state: PhaseProps['state']) {
 
 /** Full-screen message for a player who has been given sips or lost. */
 function DrinkMessage({ state }: { state: PhaseProps['state'] }) {
-  const { me, task } = state;
+  const { task } = state;
   const sips = losersDrink(task) ? sipCount(task) : 3;
   return (
     <div className="drink-content">
       <Wine size={60} />
       <span className="eyebrow">{drinkReason(state)}</span>
       <h1>Ta {sips}<br />slurker.</h1>
-      <p>Denne er til deg, {me.name}.</p>
-      <span className="pill">Venter på neste runde</span>
     </div>
   );
 }
@@ -49,7 +47,6 @@ function RecipientPicker({ state, busy, offline, act }: PhaseProps) {
 function LosersDrink({ state }: { state: PhaseProps['state'] }) {
   const { drinkers, task } = state;
   return <>
-    <span className="eyebrow">SLURKER</span>
     <h1>{drinkers.length ? 'Skål!' : 'Ingen drikker.'}</h1>
     <p className="task-description">{drinkers.length ? `Disse tar ${sipCount(task)} slurker hver:` : 'Ingen trenger å drikke denne runden.'}</p>
     {drinkers.length > 0 && (
@@ -68,19 +65,14 @@ export function SipsPhase(props: PhaseProps) {
   if (losersDrink(task)) return <LosersDrink state={state} />;
 
   if (!winners.length) return <>
-    <span className="eyebrow">SLURKER</span>
     <h1>Ingen deler ut.</h1>
-    <p className="task-description">{round.responses.length < 3
-      ? 'Med to spillere deler ingen ut slurker i denne typen runde.'
-      : 'Ingen fikk poeng denne runden, så ingen deler ut slurker.'}</p>
-    <div className="waiting"><Check size={20} /> Klar for {round.number >= game.taskCount ? 'sluttresultatet' : 'neste runde'}.</div>
+    <p className="task-description">{round.responses.length < 3 ? 'Med to spillere deles det ikke ut slurker.' : 'Ingen fikk poeng denne runden.'}</p>
   </>;
 
   const hasAllocated = (playerId: string) => round.allocations.some(a => a.giverId === playerId);
   return <>
-    <span className="eyebrow">RUNDE VINNERE</span>
-    <h1>{round.winners.includes(me.id) ? 'Du deler ut!' : 'Disse deler ut.'}</h1>
-    <p className="task-description">{winners.length === 1 ? 'Rundens beste gir' : `De ${winners.length} beste i runden gir`} 3 slurker {winners.length === 1 ? 'til én spiller.' : 'hver til ulike spillere.'}</p>
+    <h1>{round.winners.includes(me.id) ? 'Du deler ut!' : winners.length === 1 ? `${winners[0].name} deler ut.` : 'Disse deler ut.'}</h1>
+    <p className="task-description">{winners.length === 1 ? 'Vinneren gir 3 slurker.' : 'Vinnerne gir 3 slurker hver.'}</p>
     <div className="giver-list">
       {winners.map(p => (
         <div className="giver" key={p.id}>
@@ -91,12 +83,11 @@ export function SipsPhase(props: PhaseProps) {
     </div>
 
     {!round.winners.includes(me.id) ? (
-      <div className="waiting"><Hourglass size={19} /> Du deler ikke ut denne runden. {round.allocations.length === winners.length ? 'Alle slurkene er fordelt.' : 'Utdelerne velger mottakere.'}</div>
+      <div className="waiting"><Hourglass size={19} /> {round.allocations.length === winners.length ? 'Alle slurkene er fordelt.' : `Venter på ${winners.length === 1 ? 'vinneren' : 'vinnerne'} …`}</div>
     ) : myAllocation ? (
       <div className="waiting"><Check size={20} /> Du ga 3 slurker til {game.players.find(p => p.id === myAllocation.recipientId)?.name}</div>
     ) : (
       <RecipientPicker {...props} />
     )}
-    <p className="immune-note"><ShieldCheck size={16} /> Utdelerne er immune denne runden.</p>
   </>;
 }

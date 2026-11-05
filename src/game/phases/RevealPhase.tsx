@@ -189,7 +189,6 @@ export function RevealPhase({ state }: PhaseProps) {
   const { min, max, unit, method, target } = task.answer;
 
   if (method === 'rps') return <>
-    <span className="eyebrow">ØYEBLIKKET ER HER</span>
     <h1>Kampene.</h1>
     <p className="task-description">Vinnerne får 3 poeng.{game.gameSips !== false && ' Taperne tar 3 slurker.'}</p>
     <MatchResults state={state} />
@@ -200,53 +199,47 @@ export function RevealPhase({ state }: PhaseProps) {
     <WordResults state={state} />
   </>;
   if (method === 'highest') return <>
-    <span className="eyebrow">ØYEBLIKKET ER HER</span>
     <h1>Nest mest.</h1>
     <NumberResults state={state} />
   </>;
   if (method === 'zombie') return <>
-    <span className="eyebrow">ZOMBIENE HAR SPIST</span>
     <h1>Zombie.</h1>
     <ZombieResults state={state} />
   </>;
   if (method === 'mime') return <>
-    <span className="eyebrow">{performer?.name.toUpperCase()} MIMET</span>
     <h1>Fasiten.</h1>
     <div className="reveal-value">
       <span>Ordet var</span>
       <strong className="mime-answer">{round.word ?? '–'}</strong>
-      <p className="muted">{round.word ? 'Raskest får mest poeng. De som ikke gjettet, får 0.' : 'Ingen ord ble valgt. Ingen poeng denne runden.'}</p>
+      {!round.word && <p className="muted">Ingen ord ble valgt. Ingen poeng denne runden.</p>}
     </div>
     <Ranking game={game} />
   </>;
   if (method === 'wavelength') return <>
-    <span className="eyebrow">{performer?.name.toUpperCase()} VAR FASITEN</span>
     <h1>Samme bølgelengde.</h1>
     <WavelengthResults state={state} />
     <Ranking game={game} />
   </>;
   if (method === 'choice') return <>
-    <span className="eyebrow">ØYEBLIKKET ER HER</span>
     <h1>Ville du helst …</h1>
     <VoteResults state={state} />
   </>;
 
   return <>
-    <span className="eyebrow">ØYEBLIKKET ER HER</span>
     <h1>Fasiten.</h1>
     {task.kind === 'challenge' ? (
       <div className="reveal-value">
         <span>{performer?.name}{method === 'stopwatch' || task.answer.input === 'counter' ? ' brukte' : ' sitt svar'}</span>
         <strong>{round.actual === null ? '–' : formatAnswer(Math.max(min, Math.min(round.actual, max)), task)}<small>{unit}</small></strong>
-        <p className="muted">
+        {/* Only explain the result when something is unusual. */}
+        {(round.actual === null || round.actual > max || round.actual < min) && <p className="muted">
           {round.actual === null ? 'Oppgaven ble ikke fullført. Ingen poeng denne runden.'
             : round.actual > max ? `Over ${max} ${unit}. Gjettingene vurderes mot ${max}.`
-            : round.actual < min ? `Under ${min} ${unit}. Gjettingene vurderes mot ${min}.`
-            : 'Så godt kjente dere hverandre.'}
-        </p>
+            : `Under ${min} ${unit}. Gjettingene vurderes mot ${min}.`}
+        </p>}
       </div>
     ) : (
-      <p className="task-description">Målet var {formatTime(target!)} {unit}. Hvem traff best?</p>
+      <p className="task-description">Målet var {formatTime(target!)} {unit}.</p>
     )}
     <Ranking game={game} />
   </>;

@@ -1,5 +1,4 @@
 import type { ComponentType } from 'react';
-import { Dices, Users } from 'lucide-react';
 import { phaseNames, roundPhases, type Phase } from '../model';
 import type { ConfirmKind } from './ConfirmDialog';
 import { HostControls, PlayerControls } from './GameControls';
@@ -49,18 +48,15 @@ function Stepper({ state }: { state: RoundState }) {
 
 /** One round of the game: progress, the current phase, sidebar and controls. */
 export function RoundView({ state, busy, offline, act, refresh, onConfirm }: Props) {
-  const { game, isHost, round, task } = state;
+  const { game, isHost, round } = state;
   const PhaseView = phaseViews[round.phase];
 
   return <>
-    <div className="round-top">
-      <div className="round-progress">
-        <span className="eyebrow">RUNDE {round.number} AV {game.taskCount}</span>
-        <span className="round-remaining">{round.number >= game.taskCount ? 'Siste runde!' : `${game.taskCount - round.number} runder igjen etter denne`}</span>
-      </div>
-      <span className="pill">{task.kind === 'everyone' ? <><Users size={14} />Alle spiller</> : <><Dices size={14} />Én tar utfordringen</>}</span>
+    {/* Only the round number and the step; on phones they share one line. */}
+    <div className="round-head">
+      <div className="round-top"><span className="eyebrow">RUNDE {round.number} AV {game.taskCount}</span></div>
+      <Stepper state={state} />
     </div>
-    <Stepper state={state} />
     <main className="round-main">
       <section className={`round-card phase-${round.phase}`}>
         {/* Keyed by player so local input state never carries over when the demo switches player. */}

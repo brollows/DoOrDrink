@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { Check, Hourglass, Skull } from 'lucide-react';
 import { Avatar } from '../../components/Avatar';
-import { zombieSeconds, type Player } from '../../model';
+import type { Player } from '../../model';
 import { Countdown, useCountdown } from '../Countdown';
 import type { PhaseProps } from './types';
 
@@ -88,7 +88,6 @@ export function ZombieView(props: PhaseProps) {
     <div className="zombie">
       <span className="large-icon"><Skull size={34} /></span>
       <h2>Den første zombien trekkes …</h2>
-      <p className="muted">Hver bitterunde varer {zombieSeconds} sekunder.</p>
     </div>
   );
   // Keyed by bite round so the countdown starts over.

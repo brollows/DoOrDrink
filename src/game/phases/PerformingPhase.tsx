@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { Check, Hourglass, RotateCcw, ShieldCheck } from 'lucide-react';
+import { Check, Hourglass, RotateCcw } from 'lucide-react';
 import { Avatar } from '../../components/Avatar';
 import { hands, normalizeWord, sipCount, type Hand } from '../../model';
 import { Countdown, useCountdown } from '../Countdown';
@@ -25,7 +25,7 @@ function ManualEntry({ state, busy, offline, act }: PhaseProps) {
         <form onSubmit={event => { event.preventDefault(); void act('manual_result', { value: Number(value.replace(',', '.')) }); }}>
           <label htmlFor="manual-result">{task.question ? `${task.question} (${task.answer.unit})` : `Oppgi fasit i ${task.answer.unit}`}</label>
           <input id="manual-result" inputMode="decimal" required value={value} onChange={event => setValue(event.target.value)} />
-          {secret && <p className="muted manual-hint">Ikke si svaret høyt. De andre har allerede gjettet.</p>}
+          {secret && <p className="muted manual-hint">Ikke si svaret høyt.</p>}
           <button className="button primary wide" disabled={busy || offline || round.awarded}>Lagre fasit</button>
         </form>
       )}
@@ -57,7 +57,7 @@ function AttemptCounter({ state, busy, offline, act }: PhaseProps) {
         <button className="button secondary wide" disabled={disabled} onClick={() => update(misses + 1)}>Bom, prøv igjen</button>
       </div>
       {misses > 0 && <button className="undo-button" disabled={disabled} onClick={() => update(misses - 1)}><RotateCcw size={15} /> Angre siste bom</button>}
-      <p className="muted">Ikke si antallet høyt. De andre ser det på fasiten.</p>
+      <p className="muted">Ikke si antallet høyt.</p>
     </div>
   );
 }
@@ -88,7 +88,6 @@ function WordEntry({ state, busy, offline, act }: PhaseProps) {
             autoCapitalize="none" autoComplete="off" autoCorrect="off" spellCheck={false} disabled={timeUp}
             onChange={event => { const value = event.target.value.replace(/\s/g, ''); setWords(current => current.map((w, i) => i === index ? value : w)); }} />
         ))}
-        <p className="muted word-hint">Ett ord per felt. Mellomrom er ikke lov.</p>
         <button className="button primary wide" disabled={busy || offline || timeUp || !unsent}>
           {sent ? unsent ? 'Oppdater ordene' : <><Check size={19} /> Ordene er sendt</> : 'Send ordene'}
         </button>
@@ -134,7 +133,7 @@ function HandPicker({ state, busy, offline, act }: PhaseProps) {
     <div className="answer-saved">
       <span className="large-icon"><HandIcon hand={choice as Hand} size={34} /></span>
       <h2>Du valgte {hands[choice as Hand].toLowerCase()}</h2>
-      <p className="muted">{opponent && !opponentResponse?.finished ? `Venter på at ${opponentName} velger …` : 'Vinneren avsløres på fasiten.'}</p>
+      {opponent && !opponentResponse?.finished && <p className="muted">Venter på at {opponentName} velger …</p>}
     </div>
   );
   return <>
@@ -179,21 +178,19 @@ function Spectator({ state }: { state: PhaseProps['state'] }) {
   const finished = round.actual !== null || round.responses.find(q => q.playerId === round.performerId)?.finished;
   const everyoneText = everyoneTexts[task.answer.method] ?? 'Alle er i gang';
   const secondsLeft = useCountdown(round.secondsLeft);
+  // Just who is doing what, and whether they are done.
   return (
     <div className="spectator">
       {performer ? <>
         <Avatar player={performer} />
-        <h2>{performer.name} {finished ? 'er ferdig!' : task.answer.input === 'counter' ? 'er i gang' : task.answer.method === 'manual' ? 'svarer i appen' : 'tar utfordringen'}</h2>
-        <p className="muted">Resultatet avsløres på fasiten. Følg med på oppgaven!</p>
+        <h2>{performer.name} {finished ? 'er ferdig!' : task.id === 'beer' ? 'drikker …' : task.answer.method === 'manual' && task.answer.input !== 'counter' ? 'svarer i appen' : 'er i gang'}</h2>
       </> : <>
         {task.answer.method === 'words' ? <>
           <Countdown seconds={secondsLeft} />
           <h2>Tema: {task.question}</h2>
         </> : <span className="large-icon"><TaskIcon task={task} size={34} /></span>}
         <h2>{everyoneText}</h2>
-        <p className="muted">Resultatene avsløres på fasiten.</p>
       </>}
-      <span className="locked-result"><ShieldCheck size={20} /> Fasiten er skjult</span>
     </div>
   );
 }
@@ -201,14 +198,13 @@ function Spectator({ state }: { state: PhaseProps['state'] }) {
 /** Step 3: the task is carried out and the result recorded. */
 export function PerformingPhase(props: PhaseProps) {
   const { state, busy, offline, act } = props;
-  const { game, me, isHost, round, task, performer, myResponse } = state;
+  const { game, me, isHost, round, task, myResponse } = state;
   const { method } = task.answer;
   const isPerformer = me.id === round.performerId;
   const entersManually = method === 'manual' && (task.answer.enteredBy === 'host' ? isHost : isPerformer);
   const usesStopwatch = method === 'stopwatch' && (task.kind === 'everyone' || isPerformer);
 
   return <>
-    <span className="eyebrow">{task.kind === 'everyone' ? 'NÅ GJELDER DET' : `${performer?.name.toUpperCase()} SIN TUR`}</span>
     <h1>{task.title}</h1>
     {method === 'zombie' ? <ZombieView {...props} />
       : method === 'mime' ? <MimeView {...props} />
