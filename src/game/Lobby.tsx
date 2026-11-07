@@ -35,7 +35,7 @@ function JoinCodeButton({ code, onError }: { code: string; onError: Props['onErr
   );
 }
 
-/** Shown to the host: scan to open the join form with the code already filled in. */
+/** Shown to everyone in the lobby: scan to open the join form with the code already filled in. */
 function JoinPanel({ code, onError }: { code: string; onError: Props['onError'] }) {
   return (
     <div className="join-panel">
@@ -61,7 +61,7 @@ export function Lobby({ game, isHost, busy, offline, act, onError }: Props) {
         <span className="eyebrow">VENTEROMMET</span>
         <h1>Er alle med?</h1>
         <p className="muted">Del koden med gjengen. Verten starter når dere er klare.</p>
-        {isHost ? <JoinPanel code={game.code} onError={onError} /> : <JoinCodeButton code={game.code} onError={onError} />}
+        <JoinPanel code={game.code} onError={onError} />
         <div className="round-summary">
           <div><Dices size={20} /><strong>{game.taskCount}</strong><span>oppgaver</span></div>
           <div><Users size={20} /><strong>{playerCount}</strong><span>spillere</span></div>
